@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vgcalc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vgcalc}
+      POSTGRES_DB: ${POSTGRES_DB:-vgcalc}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-vgcalc} -d $${POSTGRES_DB:-vgcalc}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pg_data:
