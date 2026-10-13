@@ -25,10 +25,18 @@ structural only (no sources there).
 7. **Regulations scope pokémon only (option C, pokémon-level).**
    Moves are global. A move-level ban per regulation cannot be expressed —
    deleting a `pokemon_moves` row is global and destroys history (by decision).
-8. **Surrogate SERIAL PKs, never source IDs.** Every `id` PK is `SERIAL`
-   (Postgres-generated, incremental). ETL `INSERT`s omit `id` and resolve
-   all FKs via `slug` lookups — no PokeAPI numeric ID (`pokemon.id`,
-   `moves.id`, `types.id`, …) is ever copied into our `id` columns.
+8. **Surrogate SERIAL PKs + stored source IDs.** Every `id` PK is `SERIAL`
+    (Postgres-generated, incremental) and never reuses a PokeAPI numeric ID.
+    Every source-backed entity table (`pokemon`, `mega_evolution`, `types`,
+    `abilities`, `moves`, `items`, `natures`) additionally carries
+    `pokeapi_id INTEGER NOT NULL UNIQUE` holding the original PokeAPI numeric
+    ID (`pokemon.id`, `moves.id`, `types.id`, …), distinct from `id`.
+    ETL `INSERT`s omit `id` but must provide `pokeapi_id`; runtime FKs use
+    the surrogate `id`, while `pokeapi_id` is the ETL join key back to source
+    CSVs (e.g. `pokemon_types.type_id` → `types.pokeapi_id`, then resolved to
+    `types.id` for storage). Join tables (`type_efficacy`, `pokemon_moves`,
+    `regulation_pokemon`) and manual tables (`regulations`) have no
+    `pokeapi_id` — they have no single source ID.
 
 ## Table: `pokemon` (main, base forms only)
 
@@ -36,7 +44,8 @@ One row per battle-distinct, non-mega variant.
 
 | Column | Type | Notes | PokeAPI source |
 |---|---|---|---|
-| `id` | SERIAL PK | DB-generated surrogate. ETL omits it, Postgres assigns incrementally. NOT `pokemon.id`; use `slug` to join back to source. | — |
+| `id` | SERIAL PK | DB-generated surrogate. ETL omits it, Postgres assigns incrementally. Never `pokemon.id`. | — |
+| `pokeapi_id` | int UNIQUE NOT NULL | Original source ID, distinct from `id`. ETL join key back to `pokemon.csv`. | `pokemon.id` |
 | `slug` | text UNIQUE | URL-safe key, e.g. `arcanine-hisui`, `indeedee-female`, `floette-eternal`, `charizard`. | `pokemon.identifier` |
 | `display_name` | text | Human name, e.g. `Hisuian Arcanine`. | Manual — no per-variety EN source (names live at species level) |
 | `primary_type_id` | FK -> `types.id` | | `pokemon_types` slot 1 → `types.id` |
@@ -61,7 +70,8 @@ Base mon stays in `pokemon`; mega is never selected directly, only reached via t
 
 | Column | Type | Notes | PokeAPI source |
 |---|---|---|---|
-| `id` | SERIAL PK | DB-generated surrogate. ETL omits it. NOT the mega row's `pokemon.id` (e.g. 10034). | — |
+| `id` | SERIAL PK | DB-generated surrogate. ETL omits it. Never the mega row's `pokemon.id` (e.g. 10034). | — |
+| `pokeapi_id` | int UNIQUE NOT NULL | Mega row's original source ID (e.g. 10034), distinct from `id`. ETL join key. | Mega row's `pokemon.id` |
 | `base_pokemon_id` | FK -> `pokemon.id` | E.g. `charizard`. | Derived: non-mega `pokemon` row sharing `species_id` (`pokemon_forms.is_mega=0` row) |
 | `slug` | text UNIQUE | E.g. `charizard-mega-x`, `venusaur-mega`, `rayquaza-mega`. | Mega row's `pokemon.identifier` |
 | `required_item_id` | FK -> `items.id`, NULL | Mega Stone, e.g. `charizardite-x`. NULL only for Rayquaza. | `pokemon_form_conditions.trigger_item_id` via mega `pokemon_forms` row (stones); cross-checked with calc `MEGA_STONES` maps |
@@ -93,7 +103,8 @@ Trigger rule: exactly one of `required_item_id / required_move_id` is NOT NULL.
 
 | Column | Type | Notes | PokeAPI source |
 |---|---|---|---|
-| `id` | SERIAL PK | DB-generated surrogate. NOT `types.id`; ordering 1–18 not preserved. Seed 18 rows omitting `id`. Drop `stellar`, `unknown`, `shadow` — out of scope. | — |
+| `id` | SERIAL PK | DB-generated surrogate. Ordering 1–18 not preserved in `id`; preserved in `pokeapi_id`. Seed 18 rows omitting `id`. Drop `stellar`, `unknown`, `shadow` — out of scope. | — |
+| `pokeapi_id` | int UNIQUE NOT NULL | Original source ID, distinct from `id`. ETL join key (e.g. `pokemon_types.type_id` resolves via this). | `types.id` |
 | `slug` | text UNIQUE | E.g. `fire`, `water`, `dragon`. | `types.identifier` |
 | `display_name` | text | E.g. `Fire`. | `type_names` EN |
 
@@ -114,6 +125,8 @@ Single current chart only.
 PK = (`attack_type_id`, `target_type_id`). `CHECK multiplier IN (0, 0.5, 1, 2)`.
 Dual-type defender multiplier = product of the two rows (calc layer, not stored).
 Ignored: `type_efficacy_past.csv` (history).
+No `pokeapi_id` here — source has no single ID; ETL resolves source type IDs
+via `types.pokeapi_id`, then stores surrogate `types.id` FKs.
 
 ## Table: `abilities` (master, no logic)
 
@@ -122,7 +135,8 @@ branches (`hasAbility(...)` / `pokemon.ability === ...`), PokeAPI stores prose o
 
 | Column | Type | Notes | PokeAPI source |
 |---|---|---|---|
-| `id` | SERIAL PK | DB-generated surrogate. ETL omits it. NOT `abilities.id`. | — |
+| `id` | SERIAL PK | DB-generated surrogate. ETL omits it. Never `abilities.id`. | — |
+| `pokeapi_id` | int UNIQUE NOT NULL | Original source ID, distinct from `id`. ETL join key. | `abilities.id` |
 | `slug` | text UNIQUE | E.g. `stance-change`, `drizzle`. | `abilities.identifier` |
 | `display_name` | text | E.g. `Stance Change`. | `ability_names` EN |
 | `short_effect` | text | UI tooltip. | `ability_prose.short_effect` EN |
@@ -138,7 +152,8 @@ as booleans, multihit as two nullable ints — no extra joins per move.
 
 | Column | Type | Notes | PokeAPI source |
 |---|---|---|---|
-| `id` | SERIAL PK | DB-generated surrogate. ETL omits it. NOT `moves.id`. | — |
+| `id` | SERIAL PK | DB-generated surrogate. ETL omits it. Never `moves.id`. | — |
+| `pokeapi_id` | int UNIQUE NOT NULL | Original source ID, distinct from `id`. ETL join key. | `moves.id` |
 | `slug` | text UNIQUE | E.g. `dragon-ascent`. | `moves.identifier` |
 | `display_name` | text | | `move_names` EN |
 | `short_effect` | text | | `move_effect_prose.short_effect` EN |
@@ -166,6 +181,8 @@ Dropped: contest fields, `effect_chance` / ailment numbers (code later), `genera
 PK = (`pokemon_id`, `move_id`). Seed = Champions slice (`version_group_id 32`,
 all `method train`) collapsed: `level/order/method` constant, dropped.
 Megas inherit base's list — no `mega_moves` table.
+No `pokeapi_id` here — source join has no single ID; ETL resolves sides via
+`pokemon.pokeapi_id` + `moves.pokeapi_id`, then stores surrogate FKs.
 
 Deliberate limitation: move-level bans per regulation (e.g. Charizard legal but
 Flamethrower banned in M-C) cannot be expressed. Removing the row is global
@@ -179,8 +196,8 @@ global-mutable for moves (see above).
 
 | Table | Columns | PokeAPI source |
 |---|---|---|
-| `regulations` | `id` SERIAL PK (ETL omits it), `slug` UK (e.g. `reg-m-a`, `reg-m-c`), `display_name`, `is_current` bool (exactly one TRUE) | Manual — mirrors `ps` `champions` vs `championsregma` mods |
-| `regulation_pokemon` | `regulation_id` FK + `pokemon_id` FK, PK both | Manual curation; starting inputs: `ps` formats-data tiers + `pokemon_moves` VG32 distinct `pokemon_id`s |
+| `regulations` | `id` SERIAL PK (ETL omits it), `slug` UK (e.g. `reg-m-a`, `reg-m-c`), `display_name`, `is_current` bool (exactly one TRUE) | Manual — mirrors `ps` `champions` vs `championsregma` mods. No `pokeapi_id` (no source ID). |
+| `regulation_pokemon` | `regulation_id` FK + `pokemon_id` FK, PK both | Manual curation; starting inputs: `ps` formats-data tiers + `pokemon_moves` VG32 distinct `pokemon_id`s. No `pokeapi_id` (join of manual + surrogate FKs). |
 
 Runtime queries filter `regulation_pokemon WHERE regulation_id = (current)`.
 M-A→M-C→M-A restores the set with no re-curation. Diffs (`in M-A not M-C`)
@@ -192,7 +209,8 @@ version-group scoping, restricted to pokémon level by decision.
 
 | Column | Type | Notes | PokeAPI source |
 |---|---|---|---|
-| `id` | SERIAL PK | DB-generated surrogate, 25 rows. NOT `natures.id`. | — |
+| `id` | SERIAL PK | DB-generated surrogate, 25 rows. Never `natures.id`. | — |
+| `pokeapi_id` | int UNIQUE NOT NULL | Original source ID, distinct from `id`. ETL join key. | `natures.id` |
 | `slug` | text UNIQUE | E.g. `adamant`, `timid`, `hardy`. | `natures.identifier` |
 | `display_name` | text | | `nature_names` EN |
 | `plus_stat` | enum | `atk \| def \| spa \| spd \| spe`. Never `hp`. | `natures.increased_stat_id` (2–6) → stat slug |
@@ -210,7 +228,8 @@ Hold effects stay code-wise (same approach as abilities/moves).
 
 | Column | Type | Notes | PokeAPI source |
 |---|---|---|---|
-| `id` | SERIAL PK | DB-generated surrogate. ETL omits it. NOT `items.id` (e.g. source 699 / 211 / 247 not reused). | — |
+| `id` | SERIAL PK | DB-generated surrogate. ETL omits it. Never `items.id` (e.g. source 699 / 211 / 247 not reused as `id`). | — |
+| `pokeapi_id` | int UNIQUE NOT NULL | Original source ID (e.g. 699 / 211 / 247), distinct from `id`. ETL join key. | `items.id` |
 | `slug` | text UNIQUE | | `items.identifier` |
 | `display_name` | text | | `item_names` EN |
 | `short_effect` | text | | `item_prose.short_effect` EN |
@@ -269,6 +288,7 @@ erDiagram
     TYPES ||--o{ TYPE_EFFICACY : "defends"
     POKEMON {
         SERIAL id PK
+        int pokeapi_id UK
         string slug UK
         string display_name
         int primary_type_id FK
@@ -287,6 +307,7 @@ erDiagram
     }
     MEGA_EVOLUTION {
         SERIAL id PK
+        int pokeapi_id UK
         int base_pokemon_id FK
         string slug UK
         int required_item_id FK "nullable"
@@ -304,6 +325,7 @@ erDiagram
     }
     TYPES {
         SERIAL id PK
+        int pokeapi_id UK
         string slug UK
         string display_name
     }
@@ -323,6 +345,7 @@ erDiagram
     ITEMS ||--o{ MEGA_EVOLUTION : "stone_or_null"
     ABILITIES {
         SERIAL id PK
+        int pokeapi_id UK
         string slug UK
         string display_name
         string short_effect
@@ -330,6 +353,7 @@ erDiagram
     }
     MOVES {
         SERIAL id PK
+        int pokeapi_id UK
         string slug UK
         string display_name
         string short_effect
@@ -354,6 +378,7 @@ erDiagram
     }
     ITEMS {
         SERIAL id PK
+        int pokeapi_id UK
         string slug UK
         string display_name
         string short_effect
@@ -376,6 +401,7 @@ erDiagram
     }
     NATURES {
         SERIAL id PK
+        int pokeapi_id UK
         string slug UK
         string display_name
         string plus_stat "atk|def|spa|spd|spe"
