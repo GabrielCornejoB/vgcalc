@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strconv"
 	"vgcalc/etl/internal/utils"
 
 	"github.com/jackc/pgx/v5"
@@ -25,6 +26,7 @@ func NewTypeEtlStrategy(dbConnection *pgx.Conn) (TypeEtlStrategy, error) {
 }
 
 type PokemonType struct {
+	pokeapiId int
 	slug string
 	displayName string
 }
@@ -44,14 +46,18 @@ func (strategy TypeEtlStrategy) transform(records [][]string) ([]PokemonType, er
 	caser := cases.Title(language.English)
 
 	for _, record := range records {
-		pokemonTypes = append(pokemonTypes, PokemonType{slug:record[1], displayName: caser.String(record[1])})
+		pokeapiId, err := strconv.Atoi(record[0])
+		if err != nil {
+			return nil, fmt.Errorf("TypeEtlStrategy.transform(): invalid pokeapi_id=%q. %w", record[0], err)
+		}
+		pokemonTypes = append(pokemonTypes, PokemonType{pokeapiId: pokeapiId, slug:record[1], displayName: caser.String(record[1])})
 	}
 
 	return pokemonTypes, nil
 }
 
 func (strategy TypeEtlStrategy) load(pokemonTypes []PokemonType) error {
-	const sql = "INSERT INTO vgcalc.types (slug, display_name) VALUES ($1, $2)"
+	const sql = "INSERT INTO vgcalc.types (pokeapi_id, slug, display_name) VALUES ($1, $2, $3)"
 	var ctx = context.Background()
 	var blackListedTypes = []string{"unknown", "shadow"}
 
@@ -59,7 +65,7 @@ func (strategy TypeEtlStrategy) load(pokemonTypes []PokemonType) error {
 		if slices.Contains(blackListedTypes, pokemonType.slug) {
 			continue
 		}
-		_, err := strategy.dbConnection.Exec(ctx, sql, pokemonType.slug, pokemonType.displayName)
+		_, err := strategy.dbConnection.Exec(ctx, sql, pokemonType.pokeapiId, pokemonType.slug, pokemonType.displayName)
 		if err != nil {
 			return fmt.Errorf("TypeEtlStrategy.load(): pokemonType=%v. %w", pokemonType, err)
 		}
