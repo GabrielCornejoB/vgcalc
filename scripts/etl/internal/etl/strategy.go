@@ -1,4 +1,4 @@
-package etlstrategy
+package etl
 
 type EtlStrategy interface {
 	extract() error

@@ -1,4 +1,4 @@
-package utils
+package env
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func loadEnvs() error {
+func LoadEnvs() error {
 	if err := godotenv.Load(); err != nil {
 		return fmt.Errorf("LoadEnvs(): Error loading .env file: %w", err)
 	}
@@ -14,8 +14,6 @@ func loadEnvs() error {
 }
 
 func GetEnvByKey(envKey string) (string, error) {
-	loadEnvs()
-
 	env, exists := os.LookupEnv(envKey)
 	if !exists {
 		return "", fmt.Errorf("GetEnvByKey(%s): Env not found", envKey)
@@ -24,8 +22,6 @@ func GetEnvByKey(envKey string) (string, error) {
 }
 
 func GetDbConnectionString() (string, error){
-	loadEnvs()
-
 	host := os.Getenv("DB_HOST")
     port := os.Getenv("DB_PORT")
     user := os.Getenv("DB_USER")

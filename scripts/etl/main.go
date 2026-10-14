@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"vgcalc/etl/internal/etlstrategy"
-	"vgcalc/etl/internal/utils"
+	"vgcalc/etl/internal/etl"
+	"vgcalc/etl/internal/env"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -13,7 +13,13 @@ import (
 
 // TODO: Organize this error handling
 func main() {
-	connectionString, err := utils.GetDbConnectionString()
+	err := env.LoadEnvs()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	connectionString, err := env.GetDbConnectionString()
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -26,7 +32,7 @@ func main() {
 	}
 	defer conn.Close(context.Background())
 
-	typeStrategy, err := etlstrategy.NewTypeEtlStrategy(conn)
+	typeStrategy, err := etl.NewTypeStrategy(conn)
 
 	if err != nil {
 		fmt.Println(err.Error())
