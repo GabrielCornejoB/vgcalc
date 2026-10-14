@@ -2,8 +2,8 @@ package env
 
 import (
 	"fmt"
-	"os"
 	"github.com/joho/godotenv"
+	"os"
 )
 
 func LoadEnvs() error {
@@ -21,12 +21,12 @@ func GetEnvByKey(envKey string) (string, error) {
 	return env, nil
 }
 
-func GetDbConnectionString() (string, error){
+func GetDbConnectionString() (string, error) {
 	host := os.Getenv("DB_HOST")
-    port := os.Getenv("DB_PORT")
-    user := os.Getenv("DB_USER")
-    password := os.Getenv("DB_PASSWORD")
-    dbname := os.Getenv("DB_NAME")
+	port := os.Getenv("DB_PORT")
+	user := os.Getenv("DB_USER")
+	password := os.Getenv("DB_PASSWORD")
+	dbname := os.Getenv("DB_NAME")
 
 	if host == "" && port == "" && user == "" && password == "" && dbname == "" {
 		return "", fmt.Errorf("GetDbConnectionString(): Required empty envs for db connection string")

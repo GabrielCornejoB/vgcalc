@@ -1,12 +1,12 @@
 package csv
 
 import (
-	"os"
 	"encoding/csv"
 	"fmt"
+	"os"
 )
 
-func ReadCsvFile(filePath string) ([][]string, error){
+func ReadCsvFile(filePath string) ([][]string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("ReadCsvFile(): Failed to open csv file: %w", err)
@@ -16,9 +16,8 @@ func ReadCsvFile(filePath string) ([][]string, error){
 	csvReader := csv.NewReader(file)
 	records, err := csvReader.ReadAll()
 	if err != nil {
-		return nil, fmt.Errorf("ReadCsvFile(): Failed to read records of csv file at path: %w", err) 
+		return nil, fmt.Errorf("ReadCsvFile(): Failed to read records of csv file at path: %w", err)
 	}
 
 	return records, nil
 }
-

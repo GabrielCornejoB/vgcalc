@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strconv"
 
-	"vgcalc/etl/internal/env"
 	"vgcalc/etl/internal/csv"
+	"vgcalc/etl/internal/env"
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -15,7 +15,7 @@ import (
 
 type TypeStrategy struct {
 	filePathUrl string
-	db *sql.DB
+	db          *sql.DB
 }
 
 func NewTypeStrategy(db *sql.DB) (TypeStrategy, error) {
@@ -27,8 +27,8 @@ func NewTypeStrategy(db *sql.DB) (TypeStrategy, error) {
 }
 
 type PokemonType struct {
-	PokeapiId int
-	Slug string
+	PokeapiId   int
+	Slug        string
 	DisplayName string
 }
 
@@ -51,7 +51,7 @@ func (strategy TypeStrategy) transform(records [][]string) ([]PokemonType, error
 		if err != nil {
 			return nil, fmt.Errorf("TypeStrategy.transform(): invalid pokeapi_id=%q. %w", record[0], err)
 		}
-		pokemonTypes = append(pokemonTypes, PokemonType{PokeapiId: pokeapiId, Slug:record[1], DisplayName: caser.String(record[1])})
+		pokemonTypes = append(pokemonTypes, PokemonType{PokeapiId: pokeapiId, Slug: record[1], DisplayName: caser.String(record[1])})
 	}
 
 	return pokemonTypes, nil
@@ -92,4 +92,3 @@ func (strategy TypeStrategy) Run() error {
 
 	return nil
 }
-

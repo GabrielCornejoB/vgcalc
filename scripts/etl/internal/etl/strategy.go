@@ -6,4 +6,3 @@ type EtlStrategy interface {
 	load() error
 	Run() error
 }
-
