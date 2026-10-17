@@ -45,6 +45,7 @@ func main() {
 		etl.NewTypeStrategy(db, dataDir),
 		etl.NewTypeEfficacyStrategy(db, dataDir),
 		etl.NewAbilityStrategy(db, dataDir),
+		etl.NewNatureStrategy(db, dataDir),
 	}
 
 	for _, strategy := range strategies {
