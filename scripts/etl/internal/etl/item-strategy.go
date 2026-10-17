@@ -51,8 +51,14 @@ func (s ItemStrategy) Run() error {
 	}
 	applyItemEffects(proseRows, items, itemsMap)
 
-	const query = `INSERT INTO vgcalc.items (pokeapi_id, slug, display_name, short_effect, effect, fling_power) VALUES ($1, $2, $3, $4, $5, $6)
-	ON CONFLICT (pokeapi_id) DO UPDATE SET slug = EXCLUDED.slug, display_name = EXCLUDED.display_name, short_effect = EXCLUDED.short_effect, effect = EXCLUDED.effect, fling_power = EXCLUDED.fling_power`
+	const query = `INSERT INTO vgcalc.items (pokeapi_id, slug, display_name, short_effect, effect, fling_power)
+	VALUES ($1, $2, $3, $4, $5, $6)
+	ON CONFLICT (pokeapi_id) DO UPDATE SET
+		slug = EXCLUDED.slug,
+		display_name = EXCLUDED.display_name,
+		short_effect = EXCLUDED.short_effect,
+		effect = EXCLUDED.effect,
+		fling_power = EXCLUDED.fling_power`
 
 	tx, err := s.DB.Begin()
 	if err != nil {

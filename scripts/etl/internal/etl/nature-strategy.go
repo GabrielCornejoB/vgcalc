@@ -53,8 +53,13 @@ func (s NatureStrategy) Run() error {
 	}
 	applyNatureNames(nameRows, natures, naturesMap)
 
-	const query = `INSERT INTO vgcalc.natures (pokeapi_id, slug, display_name, plus_stat, minus_stat) VALUES ($1, $2, $3, $4, $5)
-	ON CONFLICT (pokeapi_id) DO UPDATE SET slug = EXCLUDED.slug, display_name = EXCLUDED.display_name, plus_stat = EXCLUDED.plus_stat, minus_stat = EXCLUDED.minus_stat`
+	const query = `INSERT INTO vgcalc.natures (pokeapi_id, slug, display_name, plus_stat, minus_stat)
+	VALUES ($1, $2, $3, $4, $5)
+	ON CONFLICT (pokeapi_id) DO UPDATE SET
+		slug = EXCLUDED.slug,
+		display_name = EXCLUDED.display_name,
+		plus_stat = EXCLUDED.plus_stat,
+		minus_stat = EXCLUDED.minus_stat`
 
 	tx, err := s.DB.Begin()
 	if err != nil {

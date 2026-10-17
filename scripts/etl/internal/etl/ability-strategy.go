@@ -50,8 +50,13 @@ func (s AbilityStrategy) Run() error {
 	}
 	applyAbilityEffects(proseRows, abilities, abilitiesMap)
 
-	const query = `INSERT INTO vgcalc.abilities (pokeapi_id, slug, display_name, short_effect, effect) VALUES ($1, $2, $3, $4, $5)
-	ON CONFLICT (pokeapi_id) DO UPDATE SET slug = EXCLUDED.slug, display_name = EXCLUDED.display_name, short_effect = EXCLUDED.short_effect, effect = EXCLUDED.effect`
+	const query = `INSERT INTO vgcalc.abilities (pokeapi_id, slug, display_name, short_effect, effect)
+	VALUES ($1, $2, $3, $4, $5)
+	ON CONFLICT (pokeapi_id) DO UPDATE SET
+		slug = EXCLUDED.slug,
+		display_name = EXCLUDED.display_name,
+		short_effect = EXCLUDED.short_effect,
+		effect = EXCLUDED.effect`
 
 	tx, err := s.DB.Begin()
 	if err != nil {
