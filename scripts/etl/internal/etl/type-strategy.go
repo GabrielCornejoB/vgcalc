@@ -3,7 +3,6 @@ package etl
 import (
 	"database/sql"
 	"fmt"
-	"slices"
 	"strconv"
 
 	"vgcalc/etl/internal/csv"
@@ -26,8 +25,6 @@ type PokemonType struct {
 func NewTypeStrategy(db *sql.DB, dataDir string) TypeStrategy {
 	return TypeStrategy{DB: db, CSVPath: dataDir + "types.csv"}
 }
-
-var excludedTypeSlugs = []string{"unknown", "shadow", "stellar"}
 
 func (s TypeStrategy) Run() error {
 	records, err := csv.ReadCSVFile(s.CSVPath)
@@ -58,9 +55,6 @@ func (s TypeStrategy) Run() error {
 	defer tx.Rollback()
 
 	for _, pokemonType := range pokemonTypes {
-		if slices.Contains(excludedTypeSlugs, pokemonType.Slug) {
-			continue
-		}
 		_, err := tx.Exec(query, pokemonType.PokeapiID, pokemonType.Slug, pokemonType.DisplayName)
 		if err != nil {
 			return fmt.Errorf("TypeStrategy: error inserting pokemonType=%v. %w", pokemonType, err)

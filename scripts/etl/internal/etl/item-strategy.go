@@ -3,8 +3,10 @@ package etl
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"strconv"
-	"vgcalc/etl/internal/csv"
+
+	"github.com/jszwec/csvutil"
 )
 
 type ItemStrategy struct {
@@ -33,30 +35,28 @@ func NewItemStrategy(db *sql.DB, dataDir string) ItemStrategy {
 }
 
 func (s ItemStrategy) Run() error {
-	records, err := csv.ReadCSVFile(s.itemsCSVPath)
+	itemsData, err := os.ReadFile(s.itemsCSVPath)
 	if err != nil {
 		return fmt.Errorf("ItemStrategy: error reading csv file. %w", err)
 	}
-	items, itemsMap, err := loadItems(records)
+	items, itemsMap, err := loadItems(itemsData)
 	if err != nil {
 		return fmt.Errorf("ItemStrategy: %w", err)
 	}
 
-	records, err = csv.ReadCSVFile(s.itemNamesCSVPath)
+	namesData, err := os.ReadFile(s.itemNamesCSVPath)
 	if err != nil {
 		return fmt.Errorf("ItemStrategy: error reading csv file. %w", err)
 	}
-	err = loadItemNames(records, items, itemsMap)
-	if err != nil {
+	if err := loadItemNames(namesData, items, itemsMap); err != nil {
 		return fmt.Errorf("ItemStrategy: %w", err)
 	}
 
-	records, err = csv.ReadCSVFile(s.itemProseCSVPath)
+	proseData, err := os.ReadFile(s.itemProseCSVPath)
 	if err != nil {
 		return fmt.Errorf("ItemStrategy: error reading csv file. %w", err)
 	}
-	err = loadItemEffects(records, items, itemsMap)
-	if err != nil {
+	if err := loadItemEffects(proseData, items, itemsMap); err != nil {
 		return fmt.Errorf("ItemStrategy: %w", err)
 	}
 
@@ -82,91 +82,111 @@ func (s ItemStrategy) Run() error {
 	return nil
 }
 
-func loadItems(records [][]string) ([]Item, map[int]int, error) {
-	items := make([]Item, 0, len(records))
-	itemsMap := make(map[int]int)
+// NullInt64 maps an empty CSV field to NULL (Valid=false).
+// csvutil calls it per field via the Unmarshaler interface, so the
+// "empty means unflingable" rule lives in one place.
+type NullInt64 struct {
+	sql.NullInt64
+}
+
+func (n *NullInt64) UnmarshalCSV(data []byte) error {
+	if len(data) == 0 {
+		n.Int64, n.Valid = 0, false
+		return nil
+	}
+	v, err := strconv.Atoi(string(data))
+	if err != nil {
+		return fmt.Errorf("invalid fling_power=%q. %w", string(data), err)
+	}
+	n.Int64, n.Valid = int64(v), true
+	return nil
+}
+
+// Raw CSV rows. Field mapping is declarative via `csv` tags (header names),
+// so column indexes and per-field Atoi boilerplate disappear.
+type itemCSVRow struct {
+	ID         int       `csv:"id"`
+	Identifier string    `csv:"identifier"`
+	FlingPower NullInt64 `csv:"fling_power"`
+}
+
+type itemNameCSVRow struct {
+	ItemID          int    `csv:"item_id"`
+	LocalLanguageID int    `csv:"local_language_id"`
+	Name            string `csv:"name"`
+}
+
+type itemProseCSVRow struct {
+	ItemID          int    `csv:"item_id"`
+	LocalLanguageID int    `csv:"local_language_id"`
+	ShortEffect     string `csv:"short_effect"`
+	Effect          string `csv:"effect"`
+}
+
+func loadItems(data []byte) ([]Item, map[int]int, error) {
+	var rows []itemCSVRow
+	if err := csvutil.Unmarshal(data, &rows); err != nil {
+		return nil, nil, fmt.Errorf("loadItems(): %w", err)
+	}
+
+	items := make([]Item, 0, len(rows))
+	itemsMap := make(map[int]int, len(rows))
 	seenSlugs := make(map[string]struct{})
-	for _, record := range records {
-		if len(record) < 5 {
-			return nil, nil, fmt.Errorf("loadItems(): invalid record=%v", record)
-		}
+	for _, row := range rows {
 		// PokeAPI contains duplicate identifiers (e.g. roseli-berry as both
 		// 723 and 2279 — same data in our columns, newer row has no EN text).
 		// Keep the first occurrence (lowest pokeapi_id), skip the rest.
 		// Generic rule, no per-row exceptions.
-		if _, seen := seenSlugs[record[1]]; seen {
+		if _, seen := seenSlugs[row.Identifier]; seen {
 			continue
 		}
-		pokeapiID, err := strconv.Atoi(record[0])
-		if err != nil {
-			return nil, nil, fmt.Errorf("loadItems(): invalid pokeapi_id=%q. %w", record[0], err)
-		}
-		// Empty fling_power means unflingable -> NULL.
-		var flingPower sql.NullInt64
-		if record[4] != "" {
-			flingPowerValue, err := strconv.Atoi(record[4])
-			if err != nil {
-				return nil, nil, fmt.Errorf("loadItems(): invalid fling_power=%q. %w", record[4], err)
-			}
-			flingPower = sql.NullInt64{Int64: int64(flingPowerValue), Valid: true}
-		}
-		items = append(items, Item{PokeapiID: pokeapiID, Slug: record[1], FlingPower: flingPower})
-		itemsMap[pokeapiID] = len(items) - 1
-		seenSlugs[record[1]] = struct{}{}
+		items = append(items, Item{
+			PokeapiID:  row.ID,
+			Slug:       row.Identifier,
+			FlingPower: row.FlingPower.NullInt64,
+		})
+		itemsMap[row.ID] = len(items) - 1
+		seenSlugs[row.Identifier] = struct{}{}
 	}
 
 	return items, itemsMap, nil
 }
 
-func loadItemNames(records [][]string, items []Item, itemsMap map[int]int) error {
-	for _, record := range records {
-		if len(record) < 3 {
-			return fmt.Errorf("loadItemNames(): invalid record=%v", record)
-		}
-		pokeapiID, err := strconv.Atoi(record[0])
-		if err != nil {
-			return fmt.Errorf("loadItemNames(): invalid pokeapi_id=%q. %w", record[0], err)
-		}
-		localLanguageID, err := strconv.Atoi(record[1])
-		if err != nil {
-			return fmt.Errorf("loadItemNames(): invalid local_language_id=%q. %w", record[1], err)
-		}
+func loadItemNames(data []byte, items []Item, itemsMap map[int]int) error {
+	var rows []itemNameCSVRow
+	if err := csvutil.Unmarshal(data, &rows); err != nil {
+		return fmt.Errorf("loadItemNames(): %w", err)
+	}
+	for _, row := range rows {
 		// If language id is != 9 (english), then skip the record
-		if localLanguageID != pokeapiLanguageID {
+		if row.LocalLanguageID != pokeapiLanguageID {
 			continue
 		}
-		itemIndex, exists := itemsMap[pokeapiID]
+		itemIndex, exists := itemsMap[row.ItemID]
 		if !exists {
 			continue
 		}
-		items[itemIndex].DisplayName = record[2]
+		items[itemIndex].DisplayName = row.Name
 	}
 	return nil
 }
 
-func loadItemEffects(records [][]string, items []Item, itemsMap map[int]int) error {
-	for _, record := range records {
-		if len(record) < 4 {
-			return fmt.Errorf("loadItemEffects(): invalid record=%v", record)
-		}
-		pokeapiID, err := strconv.Atoi(record[0])
-		if err != nil {
-			return fmt.Errorf("loadItemEffects(): invalid pokeapi_id=%q. %w", record[0], err)
-		}
-		localLanguageID, err := strconv.Atoi(record[1])
-		if err != nil {
-			return fmt.Errorf("loadItemEffects(): invalid local_language_id=%q. %w", record[1], err)
-		}
+func loadItemEffects(data []byte, items []Item, itemsMap map[int]int) error {
+	var rows []itemProseCSVRow
+	if err := csvutil.Unmarshal(data, &rows); err != nil {
+		return fmt.Errorf("loadItemEffects(): %w", err)
+	}
+	for _, row := range rows {
 		// If language id is != 9 (english), then skip the record
-		if localLanguageID != pokeapiLanguageID {
+		if row.LocalLanguageID != pokeapiLanguageID {
 			continue
 		}
-		itemIndex, exists := itemsMap[pokeapiID]
+		itemIndex, exists := itemsMap[row.ItemID]
 		if !exists {
 			continue
 		}
-		items[itemIndex].ShortEffect = record[2]
-		items[itemIndex].Effect = record[3]
+		items[itemIndex].ShortEffect = row.ShortEffect
+		items[itemIndex].Effect = row.Effect
 	}
 	return nil
 }
