@@ -8,24 +8,24 @@ import (
 )
 
 type AbilityStrategy struct {
-	abilitiesCSVPath	string
-	abilityNamesCSVPath	string
-	abilityProseCSVPath	string
-	DB					*sql.DB
+	abilitiesCSVPath    string
+	abilityNamesCSVPath string
+	abilityProseCSVPath string
+	DB                  *sql.DB
 }
 
 type Ability struct {
-	PokeapiID	int
-	Slug		string
-	DisplayName	string
-	ShortEffect	string
-	Effect		string
+	PokeapiID   int
+	Slug        string
+	DisplayName string
+	ShortEffect string
+	Effect      string
 }
 
 func NewAbilityStrategy(db *sql.DB, dataDir string) AbilityStrategy {
 	return AbilityStrategy{
-		DB: db,
-		abilitiesCSVPath: dataDir + "abilities.csv",
+		DB:                  db,
+		abilitiesCSVPath:    dataDir + "abilities.csv",
 		abilityNamesCSVPath: dataDir + "ability_names.csv",
 		abilityProseCSVPath: dataDir + "ability_prose.csv",
 	}
@@ -40,7 +40,7 @@ func (s AbilityStrategy) Run() error {
 	}
 	abilities, abilitiesMap, err := loadAbilities(records)
 	if err != nil {
-		return fmt.Errorf("AbilityStrategy: %w", err) 
+		return fmt.Errorf("AbilityStrategy: %w", err)
 	}
 
 	records, err = csv.ReadCSVFile(s.abilityNamesCSVPath)
@@ -71,7 +71,7 @@ func (s AbilityStrategy) Run() error {
 	defer tx.Rollback()
 
 	for _, ability := range abilities {
-		_, err := tx.Exec(query, ability.PokeapiID, ability.Slug, ability.DisplayName, ability.ShortEffect, ability.Effect)	
+		_, err := tx.Exec(query, ability.PokeapiID, ability.Slug, ability.DisplayName, ability.ShortEffect, ability.Effect)
 		if err != nil {
 			return fmt.Errorf("AbilityStrategy: error inserting ability %v. %w", ability, err)
 		}
@@ -127,7 +127,7 @@ func loadAbilityNames(records [][]string, abilities []Ability, abilitiesMap map[
 	return nil
 }
 
-func loadAbilityEffects(records[][] string, abilities []Ability, abilitiesMap map[int]int) error {
+func loadAbilityEffects(records [][]string, abilities []Ability, abilitiesMap map[int]int) error {
 	for _, record := range records {
 		if len(record) < 4 {
 			return fmt.Errorf("AbilityStrategy: invalid record=%v", record)

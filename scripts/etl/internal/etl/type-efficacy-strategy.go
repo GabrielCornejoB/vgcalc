@@ -10,7 +10,7 @@ import (
 
 type TypeEfficacyStrategy struct {
 	CSVPath string
-	DB    	*sql.DB
+	DB      *sql.DB
 }
 
 type TypeEfficacy struct {

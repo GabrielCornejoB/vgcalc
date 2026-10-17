@@ -13,7 +13,7 @@ import (
 )
 
 type TypeStrategy struct {
-	CSVPath	string
+	CSVPath string
 	DB      *sql.DB
 }
 
