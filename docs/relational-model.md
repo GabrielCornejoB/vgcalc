@@ -274,6 +274,14 @@ for now, listed so nothing is lost:
    past/changelog/flavor/history tables.
 9. **No `species` table (deferred).** Species Clause / Pokédex sorting need it
    back later (`species_id` + `is_default` re-attached to `pokemon`).
+10. **No hardcoded allowlists in ETL code (decided).** `items` (and `abilities`,
+    `moves` by extension) import the full dex — no burned-in slug/ID lists in
+    Go. The 3-row type exclusion (`unknown`, `shadow`, `stellar`) stays the
+    sole hardcoded exception: tiny and frozen. Competitive scoping (~60 items)
+    is deferred to data-driven curation (DB-side), never code. Duplicate source
+    slugs are resolved generically (first/lowest `pokeapi_id` wins, e.g.
+    `roseli-berry` 723 vs 2279, which carry identical data in our columns) —
+    no per-row exceptions.
 
 ## Diagram (current state, structural only)
 
