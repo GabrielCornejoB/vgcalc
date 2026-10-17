@@ -28,7 +28,7 @@ func GetDbConnectionString() (string, error) {
 	password := os.Getenv("DB_PASSWORD")
 	dbname := os.Getenv("DB_NAME")
 
-	if host == "" && port == "" && user == "" && password == "" && dbname == "" {
+	if host == "" || port == "" || user == "" || password == "" || dbname == "" {
 		return "", fmt.Errorf("GetDbConnectionString(): Required empty envs for db connection string")
 	}
 

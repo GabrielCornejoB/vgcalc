@@ -10,7 +10,6 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-// TODO: Organize this error handling
 func main() {
 	err := env.LoadEnvs()
 	if err != nil {
@@ -36,28 +35,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	typeStrategy, err := etl.NewTypeStrategy(db)
-
+	typesCSVPath, err := env.GetEnvByKey("PATH_TYPES_CSV")
 	if err != nil {
-		fmt.Println(err.Error())
-		return
+		fmt.Println(os.Stderr, err.Error())
+		os.Exit(1)
 	}
 
-	err = typeStrategy.Run()
-	if err != nil {
-		fmt.Println(err.Error())
-		return
+	typeStrategy := etl.TypeStrategy{DB: db, CSVPath: typesCSVPath}
+	if err := typeStrategy.Run(); err != nil {
+		fmt.Println(os.Stderr, err.Error())
+		os.Exit(1)
 	}
 
-	typeEfficacyStrategy, err := etl.NewTypeEfficacyStrategy(db)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-
-	err = typeEfficacyStrategy.Run()
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
 }
