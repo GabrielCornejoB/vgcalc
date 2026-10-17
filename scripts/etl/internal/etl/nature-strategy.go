@@ -29,8 +29,6 @@ func NewNatureStrategy(db *sql.DB, dataDir string) NatureStrategy {
 	}
 }
 
-// statIDToSlug maps PokeAPI stat IDs to the model's inline stat enum.
-// Only battle stats 2-6 appear in natures.csv; hp (1) never does.
 var statIDToSlug = map[int]string{
 	2: "atk",
 	3: "def",

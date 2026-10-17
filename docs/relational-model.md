@@ -103,7 +103,7 @@ Trigger rule: exactly one of `required_item_id / required_move_id` is NOT NULL.
 
 | Column | Type | Notes | PokeAPI source |
 |---|---|---|---|
-| `id` | SERIAL PK | DB-generated surrogate. Ordering 1–18 not preserved in `id`; preserved in `pokeapi_id`. Seed 18 rows omitting `id`. Drop `stellar`, `unknown`, `shadow` — out of scope. | — |
+| `id` | SERIAL PK | DB-generated surrogate. Ordering 1–18 not preserved in `id`; preserved in `pokeapi_id`. Seed all rows from `types.csv` (18 battle types plus `stellar`, `unknown`, `shadow`). | — |
 | `pokeapi_id` | int UNIQUE NOT NULL | Original source ID, distinct from `id`. ETL join key (e.g. `pokemon_types.type_id` resolves via this). | `types.id` |
 | `slug` | text UNIQUE | E.g. `fire`, `water`, `dragon`. | `types.identifier` |
 | `display_name` | text | E.g. `Fire`. | `type_names` EN |
@@ -160,9 +160,9 @@ as booleans, multihit as two nullable ints — no extra joins per move.
 | `effect` | text | | `move_effect_prose.effect` EN |
 | `type_id` | FK -> `types.id` | | `moves.type_id` |
 | `category` | `physical \| special \| status` | | `move_damage_classes` via `moves.damage_class_id` (1/2/3) |
-| `power` | int NULL | `NULL` for status; fixed-damage stays code. | `moves.power` |
-| `accuracy` | int NULL | `NULL` = never misses. | `moves.accuracy` |
-| `pp` | int | No damage use, kept for legality. | `moves.pp` |
+| `power` | int NOT NULL | `0` = no fixed power (status moves; source empty or `0`, e.g. variable-power `hard-press` stays `0`, fixed-damage stays code). | `moves.power`, empty → `0` |
+| `accuracy` | int NOT NULL | `0` = never misses (source empty, or `0` for always-hit e.g. `tachyon-cutter`). | `moves.accuracy`, empty → `0` |
+| `pp` | int NOT NULL | No damage use, kept for legality. `0` = missing (shadow moves; source empty). | `moves.pp`, empty → `0` |
 | `priority` | int | Default 0. | `moves.priority` |
 | `target` | enum (text) | Inlined, **no table**. E.g. `selected-pokemon`, `all-opponents`, `all-other-pokemon`, `user`, `entire-field`. Drives doubles spread. | `move_targets.identifier` via `moves.target_id` |
 | `is_contact, is_punch, is_bite, is_sound, is_pulse, is_bullet` | bool, default false | `protect/mirror/...` dropped. | `move_flag_map` (`ballistics→is_bullet`) |
@@ -269,15 +269,14 @@ for now, listed so nothing is lost:
    collapse agreed. `items`: ~60 competitive rows agreed.
 8. **Dropped knowingly.** Sprites/icons (UI later); field/weather/terrain
    (battle runtime, not data tables); `fling_effect_id`, `effect_chance` /
-   ailments (code later); contest/pocket/price/holder metadata; Stellar /
-   unknown / shadow types; Arceus/Silvally form-types; Tera/Z/Max;
+   ailments (code later); contest/pocket/price/holder metadata;
+   Arceus/Silvally form-types; Tera/Z/Max;
    past/changelog/flavor/history tables.
 9. **No `species` table (deferred).** Species Clause / Pokédex sorting need it
    back later (`species_id` + `is_default` re-attached to `pokemon`).
 10. **No hardcoded allowlists in ETL code (decided).** `items` (and `abilities`,
     `moves` by extension) import the full dex — no burned-in slug/ID lists in
-    Go. The 3-row type exclusion (`unknown`, `shadow`, `stellar`) stays the
-    sole hardcoded exception: tiny and frozen. Competitive scoping (~60 items)
+    Go. Competitive scoping (~60 items)
     is deferred to data-driven curation (DB-side), never code. Duplicate source
     slugs are resolved generically (first/lowest `pokeapi_id` wins, e.g.
     `roseli-berry` 723 vs 2279, which carry identical data in our columns) —

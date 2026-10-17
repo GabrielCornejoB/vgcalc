@@ -46,10 +46,12 @@ func (s TypeEfficacyStrategy) Run() error {
 
 	for _, typeEfficacy := range typeEfficacies {
 		attackId, attackIdExists := typesMap[typeEfficacy.AttackTypeId]
+		if !attackIdExists {
+			return fmt.Errorf("TypeEfficacyStrategy: unknown attack_type_id=%d", typeEfficacy.AttackTypeId)
+		}
 		targetId, targetIdExists := typesMap[typeEfficacy.TargetTypeId]
-		// If type doesn't matches then continue. This is because some types are excluded (unknown, shadow, stellar)
-		if !attackIdExists || !targetIdExists {
-			continue
+		if !targetIdExists {
+			return fmt.Errorf("TypeEfficacyStrategy: unknown target_type_id=%d", typeEfficacy.TargetTypeId)
 		}
 		_, err := tx.Exec(query, attackId, targetId, typeEfficacy.Multiplier)
 		if err != nil {
