@@ -35,16 +35,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	typesCSVPath, err := env.GetEnvByKey("PATH_TYPES_CSV")
+	dataDir, err := env.GetEnvByKey("DATA_DIR")
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
 
-	typeStrategy := etl.TypeStrategy{DB: db, CSVPath: typesCSVPath}
-	if err := typeStrategy.Run(); err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
+	strategies := []etl.EtlStrategy{
+		etl.NewTypeStrategy(db, dataDir),
+		etl.NewTypeEfficacyStrategy(db, dataDir),
+	}
+
+	for _, strategy := range strategies {
+		if err := strategy.Run(); err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		}
 	}
 
 }

@@ -19,6 +19,10 @@ type TypeEfficacy struct {
 	Multiplier   float64
 }
 
+func NewTypeEfficacyStrategy(db *sql.DB, dataDir string) TypeEfficacyStrategy {
+	return TypeEfficacyStrategy{DB: db, CSVPath: dataDir + "type_efficacy.csv"}
+}
+
 func (s TypeEfficacyStrategy) Run() error {
 	records, err := csv.ReadCSVFile(s.CSVPath)
 	if err != nil {

@@ -13,7 +13,7 @@ import (
 )
 
 type TypeStrategy struct {
-	CSVPath string
+	CSVPath	string
 	DB      *sql.DB
 }
 
@@ -21,6 +21,10 @@ type PokemonType struct {
 	PokeapiID   int
 	Slug        string
 	DisplayName string
+}
+
+func NewTypeStrategy(db *sql.DB, dataDir string) TypeStrategy {
+	return TypeStrategy{DB: db, CSVPath: dataDir + "types.csv"}
 }
 
 var excludedTypeSlugs = []string{"unknown", "shadow", "stellar"}
