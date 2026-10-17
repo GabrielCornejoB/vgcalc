@@ -37,13 +37,13 @@ func main() {
 
 	typesCSVPath, err := env.GetEnvByKey("PATH_TYPES_CSV")
 	if err != nil {
-		fmt.Println(os.Stderr, err.Error())
+		fmt.Println(err.Error())
 		os.Exit(1)
 	}
 
 	typeStrategy := etl.TypeStrategy{DB: db, CSVPath: typesCSVPath}
 	if err := typeStrategy.Run(); err != nil {
-		fmt.Println(os.Stderr, err.Error())
+		fmt.Println(err.Error())
 		os.Exit(1)
 	}
 

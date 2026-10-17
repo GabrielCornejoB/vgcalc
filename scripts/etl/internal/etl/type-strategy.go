@@ -30,11 +30,7 @@ func (s TypeStrategy) Run() error {
 	if err != nil {
 		return fmt.Errorf("TypeStrategy: error reading csv file. %w", err)
 	}
-	if len(records) <= 1 {
-		return fmt.Errorf("TypeStrategy: file doesn't has enough lines.")
-	}
 
-	records = records[1:]
 	pokemonTypes := make([]PokemonType, 0)
 	caser := cases.Title(language.English)
 	for _, record := range records {
@@ -48,15 +44,27 @@ func (s TypeStrategy) Run() error {
 		pokemonTypes = append(pokemonTypes, PokemonType{PokeapiID: pokeapiID, Slug: record[1], DisplayName: caser.String(record[1])})
 	}
 
-	const query = "INSERT INTO vgcalc.types (pokeapi_id, slug, display_name) VALUES ($1, $2, $3)"
+	const query = `INSERT INTO vgcalc.types (pokeapi_id, slug, display_name) VALUES ($1, $2, $3)
+	ON CONFLICT (pokeapi_id) DO UPDATE SET slug = EXCLUDED.slug, display_name = EXCLUDED.display_name`
+
+	tx, err := s.DB.Begin()
+	if err != nil {
+		return fmt.Errorf("TypeStrategy: error starting transaction. %w", err)
+	}
+	defer tx.Rollback()
+
 	for _, pokemonType := range pokemonTypes {
 		if slices.Contains(excludedTypeSlugs, pokemonType.Slug) {
 			continue
 		}
-		_, err := s.DB.Exec(query, pokemonType.PokeapiID, pokemonType.Slug, pokemonType.DisplayName)
+		_, err := tx.Exec(query, pokemonType.PokeapiID, pokemonType.Slug, pokemonType.DisplayName)
 		if err != nil {
 			return fmt.Errorf("TypeStrategy: error inserting pokemonType=%v. %w", pokemonType, err)
 		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("TypeStrategy: error committing transaction. %w", err)
 	}
 
 	return nil
