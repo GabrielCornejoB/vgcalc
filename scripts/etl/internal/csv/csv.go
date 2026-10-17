@@ -1,29 +1,36 @@
 package csv
 
 import (
+	"bytes"
 	"encoding/csv"
 	"fmt"
 	"os"
+
+	"github.com/jszwec/csvutil"
 )
 
-func ReadCSVFile(filePath string) ([][]string, error) {
-	file, err := os.Open(filePath)
+// unmarshal maps CSV bytes to a struct slice via header tags.
+// TrimLeadingSpace stays on so quoted fields preceded by a space (`", "`) still parse.
+func unmarshal(data []byte, v any) error {
+	r := csv.NewReader(bytes.NewReader(data))
+	r.TrimLeadingSpace = true
+	dec, err := csvutil.NewDecoder(r)
 	if err != nil {
-		return nil, fmt.Errorf("ReadCSVFile(): failed to open csv file: %w", err)
+		return err
 	}
-	defer file.Close()
+	return dec.Decode(v)
+}
 
-	csvReader := csv.NewReader(file)
-	csvReader.TrimLeadingSpace = true
-	records, err := csvReader.ReadAll()
+// LoadFile reads a CSV file from path and maps it to a struct slice via header tags.
+// I/O + decode live here so strategy builders stay pure (in-memory slices, no os/csvutil).
+func LoadFile[T any](path string) ([]T, error) {
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("ReadCSVFile(): failed to read records of csv file at path: %v. %w", filePath, err)
+		return nil, fmt.Errorf("csv.LoadFile(%s): %w", path, err)
 	}
-	if len(records) <= 1 {
-		return nil, fmt.Errorf("ReadCSVFile(): file doesn't has enough lines. File path: %v", filePath)
+	var v []T
+	if err := unmarshal(data, &v); err != nil {
+		return nil, fmt.Errorf("csv.LoadFile(%s): %w", path, err)
 	}
-
-	records = records[1:]
-
-	return records, nil
+	return v, nil
 }

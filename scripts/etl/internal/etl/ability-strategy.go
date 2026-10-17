@@ -3,7 +3,7 @@ package etl
 import (
 	"database/sql"
 	"fmt"
-	"strconv"
+
 	"vgcalc/etl/internal/csv"
 )
 
@@ -32,32 +32,23 @@ func NewAbilityStrategy(db *sql.DB, dataDir string) AbilityStrategy {
 }
 
 func (s AbilityStrategy) Run() error {
-	records, err := csv.ReadCSVFile(s.abilitiesCSVPath)
-	if err != nil {
-		return fmt.Errorf("AbilityStrategy: error reading csv file. %w", err)
-	}
-	abilities, abilitiesMap, err := loadAbilities(records)
+	abilityRows, err := csv.LoadFile[abilityCSVRow](s.abilitiesCSVPath)
 	if err != nil {
 		return fmt.Errorf("AbilityStrategy: %w", err)
 	}
+	abilities, abilitiesMap := buildAbilities(abilityRows)
 
-	records, err = csv.ReadCSVFile(s.abilityNamesCSVPath)
-	if err != nil {
-		return fmt.Errorf("AbilityStrategy: error reading csv file. %w", err)
-	}
-	err = loadAbilityNames(records, abilities, abilitiesMap)
+	nameRows, err := csv.LoadFile[abilityNameCSVRow](s.abilityNamesCSVPath)
 	if err != nil {
 		return fmt.Errorf("AbilityStrategy: %w", err)
 	}
+	applyAbilityNames(nameRows, abilities, abilitiesMap)
 
-	records, err = csv.ReadCSVFile(s.abilityProseCSVPath)
-	if err != nil {
-		return fmt.Errorf("AbilityStrategy: error reading csv file. %w", err)
-	}
-	err = loadAbilityEffects(records, abilities, abilitiesMap)
+	proseRows, err := csv.LoadFile[abilityProseCSVRow](s.abilityProseCSVPath)
 	if err != nil {
 		return fmt.Errorf("AbilityStrategy: %w", err)
 	}
+	applyAbilityEffects(proseRows, abilities, abilitiesMap)
 
 	const query = `INSERT INTO vgcalc.abilities (pokeapi_id, slug, display_name, short_effect, effect) VALUES ($1, $2, $3, $4, $5)
 	ON CONFLICT (pokeapi_id) DO UPDATE SET slug = EXCLUDED.slug, display_name = EXCLUDED.display_name, short_effect = EXCLUDED.short_effect, effect = EXCLUDED.effect`
@@ -81,73 +72,60 @@ func (s AbilityStrategy) Run() error {
 	return nil
 }
 
-func loadAbilities(records [][]string) ([]Ability, map[int]int, error) {
-	abilities := make([]Ability, 0, len(records))
-	abilitiesMap := make(map[int]int)
-	for i, record := range records {
-		if len(record) < 2 {
-			return nil, nil, fmt.Errorf("loadAbilities(): invalid record=%v", record)
-		}
-		pokeapiID, err := strconv.Atoi(record[0])
-		if err != nil {
-			return nil, nil, fmt.Errorf("loadAbilities(): invalid pokeapi_id=%q. %w", record[0], err)
-		}
-		abilities = append(abilities, Ability{PokeapiID: pokeapiID, Slug: record[1]})
-		abilitiesMap[pokeapiID] = i
-	}
-
-	return abilities, abilitiesMap, nil
+type abilityCSVRow struct {
+	ID         int    `csv:"id"`
+	Identifier string `csv:"identifier"`
 }
 
-func loadAbilityNames(records [][]string, abilities []Ability, abilitiesMap map[int]int) error {
-	for _, record := range records {
-		if len(record) < 3 {
-			return fmt.Errorf("loadAbilityNames(): invalid record=%v", record)
-		}
-		pokeapiID, err := strconv.Atoi(record[0])
-		if err != nil {
-			return fmt.Errorf("loadAbilityNames(): invalid pokeapi_id=%q. %w", record[0], err)
-		}
-		localLanguageID, err := strconv.Atoi(record[1])
-		if err != nil {
-			return fmt.Errorf("loadAbilityNames(): invalid local_language_id=%q. %w", record[1], err)
-		}
+type abilityNameCSVRow struct {
+	AbilityID       int    `csv:"ability_id"`
+	LocalLanguageID int    `csv:"local_language_id"`
+	Name            string `csv:"name"`
+}
+
+type abilityProseCSVRow struct {
+	AbilityID       int    `csv:"ability_id"`
+	LocalLanguageID int    `csv:"local_language_id"`
+	ShortEffect     string `csv:"short_effect"`
+	Effect          string `csv:"effect"`
+}
+
+func buildAbilities(rows []abilityCSVRow) ([]Ability, map[int]int) {
+	abilities := make([]Ability, 0, len(rows))
+	abilitiesMap := make(map[int]int, len(rows))
+	for i, row := range rows {
+		abilities = append(abilities, Ability{PokeapiID: row.ID, Slug: row.Identifier})
+		abilitiesMap[row.ID] = i
+	}
+
+	return abilities, abilitiesMap
+}
+
+func applyAbilityNames(rows []abilityNameCSVRow, abilities []Ability, abilitiesMap map[int]int) {
+	for _, row := range rows {
 		// If language id is != 9 (english), then skip the record
-		if localLanguageID != pokeapiLanguageID {
+		if row.LocalLanguageID != pokeapiLanguageID {
 			continue
 		}
-		abilityIndex, exists := abilitiesMap[pokeapiID]
+		abilityIndex, exists := abilitiesMap[row.AbilityID]
 		if !exists {
 			continue
 		}
-		abilities[abilityIndex].DisplayName = record[2]
+		abilities[abilityIndex].DisplayName = row.Name
 	}
-	return nil
 }
 
-func loadAbilityEffects(records [][]string, abilities []Ability, abilitiesMap map[int]int) error {
-	for _, record := range records {
-		if len(record) < 4 {
-			return fmt.Errorf("AbilityStrategy: invalid record=%v", record)
-		}
-		pokeapiID, err := strconv.Atoi(record[0])
-		if err != nil {
-			return fmt.Errorf("AbilityStrategy: invalid pokeapi_id=%q. %w", record[0], err)
-		}
-		localLanguageID, err := strconv.Atoi(record[1])
-		if err != nil {
-			return fmt.Errorf("AbilityStrategy: invalid local_language_id=%q. %w", record[1], err)
-		}
+func applyAbilityEffects(rows []abilityProseCSVRow, abilities []Ability, abilitiesMap map[int]int) {
+	for _, row := range rows {
 		// If language id is != 9 (english), then skip the record
-		if localLanguageID != pokeapiLanguageID {
+		if row.LocalLanguageID != pokeapiLanguageID {
 			continue
 		}
-		abilityIndex, exists := abilitiesMap[pokeapiID]
+		abilityIndex, exists := abilitiesMap[row.AbilityID]
 		if !exists {
 			continue
 		}
-		abilities[abilityIndex].ShortEffect = record[2]
-		abilities[abilityIndex].Effect = record[3]
+		abilities[abilityIndex].ShortEffect = row.ShortEffect
+		abilities[abilityIndex].Effect = row.Effect
 	}
-	return nil
 }

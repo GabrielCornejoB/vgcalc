@@ -3,12 +3,10 @@ package etl
 import (
 	"database/sql"
 	"fmt"
-	"strconv"
-
-	"vgcalc/etl/internal/csv"
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
+	"vgcalc/etl/internal/csv"
 )
 
 type TypeStrategy struct {
@@ -27,23 +25,12 @@ func NewTypeStrategy(db *sql.DB, dataDir string) TypeStrategy {
 }
 
 func (s TypeStrategy) Run() error {
-	records, err := csv.ReadCSVFile(s.CSVPath)
+	rows, err := csv.LoadFile[typeCSVRow](s.CSVPath)
 	if err != nil {
-		return fmt.Errorf("TypeStrategy: error reading csv file. %w", err)
+		return fmt.Errorf("TypeStrategy: %w", err)
 	}
 
-	pokemonTypes := make([]PokemonType, 0)
-	caser := cases.Title(language.English)
-	for _, record := range records {
-		if len(record) < 2 {
-			return fmt.Errorf("TypeStrategy: invalid record=%v", record)
-		}
-		pokeapiID, err := strconv.Atoi(record[0])
-		if err != nil {
-			return fmt.Errorf("TypeStrategy: invalid pokeapi_id=%q. %w", record[0], err)
-		}
-		pokemonTypes = append(pokemonTypes, PokemonType{PokeapiID: pokeapiID, Slug: record[1], DisplayName: caser.String(record[1])})
-	}
+	pokemonTypes := loadTypes(rows)
 
 	const query = `INSERT INTO vgcalc.types (pokeapi_id, slug, display_name) VALUES ($1, $2, $3)
 	ON CONFLICT (pokeapi_id) DO UPDATE SET slug = EXCLUDED.slug, display_name = EXCLUDED.display_name`
@@ -66,4 +53,23 @@ func (s TypeStrategy) Run() error {
 	}
 
 	return nil
+}
+
+type typeCSVRow struct {
+	ID         int    `csv:"id"`
+	Identifier string `csv:"identifier"`
+}
+
+func loadTypes(rows []typeCSVRow) []PokemonType {
+	caser := cases.Title(language.English)
+	pokemonTypes := make([]PokemonType, 0, len(rows))
+	for _, row := range rows {
+		pokemonTypes = append(pokemonTypes, PokemonType{
+			PokeapiID:   row.ID,
+			Slug:        row.Identifier,
+			DisplayName: caser.String(row.Identifier),
+		})
+	}
+
+	return pokemonTypes
 }

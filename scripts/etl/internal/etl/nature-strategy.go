@@ -3,7 +3,7 @@ package etl
 import (
 	"database/sql"
 	"fmt"
-	"strconv"
+
 	"vgcalc/etl/internal/csv"
 )
 
@@ -40,23 +40,20 @@ var statIDToSlug = map[int]string{
 }
 
 func (s NatureStrategy) Run() error {
-	records, err := csv.ReadCSVFile(s.naturesCSVPath)
+	natureRows, err := csv.LoadFile[natureCSVRow](s.naturesCSVPath)
 	if err != nil {
-		return fmt.Errorf("NatureStrategy: error reading csv file. %w", err)
+		return fmt.Errorf("NatureStrategy: %w", err)
 	}
-	natures, naturesMap, err := loadNatures(records)
+	natures, naturesMap, err := buildNatures(natureRows)
 	if err != nil {
 		return fmt.Errorf("NatureStrategy: %w", err)
 	}
 
-	records, err = csv.ReadCSVFile(s.natureNamesCSVPath)
-	if err != nil {
-		return fmt.Errorf("NatureStrategy: error reading csv file. %w", err)
-	}
-	err = loadNatureNames(records, natures, naturesMap)
+	nameRows, err := csv.LoadFile[natureNameCSVRow](s.natureNamesCSVPath)
 	if err != nil {
 		return fmt.Errorf("NatureStrategy: %w", err)
 	}
+	applyNatureNames(nameRows, natures, naturesMap)
 
 	const query = `INSERT INTO vgcalc.natures (pokeapi_id, slug, display_name, plus_stat, minus_stat) VALUES ($1, $2, $3, $4, $5)
 	ON CONFLICT (pokeapi_id) DO UPDATE SET slug = EXCLUDED.slug, display_name = EXCLUDED.display_name, plus_stat = EXCLUDED.plus_stat, minus_stat = EXCLUDED.minus_stat`
@@ -80,62 +77,48 @@ func (s NatureStrategy) Run() error {
 	return nil
 }
 
-func loadNatures(records [][]string) ([]Nature, map[int]int, error) {
-	natures := make([]Nature, 0, len(records))
-	naturesMap := make(map[int]int)
-	for i, record := range records {
-		if len(record) < 4 {
-			return nil, nil, fmt.Errorf("loadNatures(): invalid record=%v", record)
-		}
-		pokeapiID, err := strconv.Atoi(record[0])
-		if err != nil {
-			return nil, nil, fmt.Errorf("loadNatures(): invalid pokeapi_id=%q. %w", record[0], err)
-		}
-		decreasedStatID, err := strconv.Atoi(record[2])
-		if err != nil {
-			return nil, nil, fmt.Errorf("loadNatures(): invalid decreased_stat_id=%q. %w", record[2], err)
-		}
-		increasedStatID, err := strconv.Atoi(record[3])
-		if err != nil {
-			return nil, nil, fmt.Errorf("loadNatures(): invalid increased_stat_id=%q. %w", record[3], err)
-		}
-		minusStat, ok := statIDToSlug[decreasedStatID]
+type natureCSVRow struct {
+	ID              int    `csv:"id"`
+	Identifier      string `csv:"identifier"`
+	DecreasedStatID int    `csv:"decreased_stat_id"`
+	IncreasedStatID int    `csv:"increased_stat_id"`
+}
+
+type natureNameCSVRow struct {
+	NatureID        int    `csv:"nature_id"`
+	LocalLanguageID int    `csv:"local_language_id"`
+	Name            string `csv:"name"`
+}
+
+func buildNatures(rows []natureCSVRow) ([]Nature, map[int]int, error) {
+	natures := make([]Nature, 0, len(rows))
+	naturesMap := make(map[int]int, len(rows))
+	for i, row := range rows {
+		minusStat, ok := statIDToSlug[row.DecreasedStatID]
 		if !ok {
-			return nil, nil, fmt.Errorf("loadNatures(): unknown decreased_stat_id=%q", record[2])
+			return nil, nil, fmt.Errorf("buildNatures(): unknown decreased_stat_id=%d", row.DecreasedStatID)
 		}
-		plusStat, ok := statIDToSlug[increasedStatID]
+		plusStat, ok := statIDToSlug[row.IncreasedStatID]
 		if !ok {
-			return nil, nil, fmt.Errorf("loadNatures(): unknown increased_stat_id=%q", record[3])
+			return nil, nil, fmt.Errorf("buildNatures(): unknown increased_stat_id=%d", row.IncreasedStatID)
 		}
-		natures = append(natures, Nature{PokeapiID: pokeapiID, Slug: record[1], PlusStat: plusStat, MinusStat: minusStat})
-		naturesMap[pokeapiID] = i
+		natures = append(natures, Nature{PokeapiID: row.ID, Slug: row.Identifier, PlusStat: plusStat, MinusStat: minusStat})
+		naturesMap[row.ID] = i
 	}
 
 	return natures, naturesMap, nil
 }
 
-func loadNatureNames(records [][]string, natures []Nature, naturesMap map[int]int) error {
-	for _, record := range records {
-		if len(record) < 3 {
-			return fmt.Errorf("loadNatureNames(): invalid record=%v", record)
-		}
-		pokeapiID, err := strconv.Atoi(record[0])
-		if err != nil {
-			return fmt.Errorf("loadNatureNames(): invalid pokeapi_id=%q. %w", record[0], err)
-		}
-		localLanguageID, err := strconv.Atoi(record[1])
-		if err != nil {
-			return fmt.Errorf("loadNatureNames(): invalid local_language_id=%q. %w", record[1], err)
-		}
+func applyNatureNames(rows []natureNameCSVRow, natures []Nature, naturesMap map[int]int) {
+	for _, row := range rows {
 		// If language id is != 9 (english), then skip the record
-		if localLanguageID != pokeapiLanguageID {
+		if row.LocalLanguageID != pokeapiLanguageID {
 			continue
 		}
-		natureIndex, exists := naturesMap[pokeapiID]
+		natureIndex, exists := naturesMap[row.NatureID]
 		if !exists {
 			continue
 		}
-		natures[natureIndex].DisplayName = record[2]
+		natures[natureIndex].DisplayName = row.Name
 	}
-	return nil
 }
