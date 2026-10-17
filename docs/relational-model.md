@@ -234,7 +234,7 @@ Hold effects stay code-wise (same approach as abilities/moves).
 | `display_name` | text | | `item_names` EN |
 | `short_effect` | text | | `item_prose.short_effect` EN |
 | `effect` | text | | `item_prose.effect` EN |
-| `fling_power` | int NULL | `NULL` = unflingable (e.g. Red/Blue Orb). Stones 80, Leftovers 10, Life Orb 30. | `items.fling_power` |
+| `fling_power` | int NOT NULL DEFAULT 0 | `0` = unflingable (e.g. Red/Blue Orb). Stones 80, Leftovers 10, Life Orb 30. | `items.fling_power`, empty -> `0` |
 
 No `category` column — nothing in the formula reads it; Mega-Stone-ness lives
 once in `mega_evolution.required_item_id` (join, not duplicated flag).
@@ -391,7 +391,7 @@ erDiagram
         string display_name
         string short_effect
         string effect
-        int fling_power "nullable"
+        int fling_power "NOT NULL DEFAULT 0"
     }
     POKEMON_MOVES {
         int pokemon_id PK_FK

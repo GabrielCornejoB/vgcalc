@@ -60,7 +60,7 @@ CREATE TABLE vgcalc.items (
   display_name TEXT NOT NULL,
   short_effect TEXT,
   effect       TEXT,
-  fling_power  INTEGER CHECK (fling_power >= 0)
+  fling_power  INTEGER NOT NULL DEFAULT 0 CHECK (fling_power >= 0)
 );
 
 CREATE TABLE vgcalc.natures (

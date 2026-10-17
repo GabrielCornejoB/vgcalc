@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/jszwec/csvutil"
 )
@@ -22,7 +21,7 @@ type Item struct {
 	DisplayName string
 	ShortEffect string
 	Effect      string
-	FlingPower  sql.NullInt64
+	FlingPower  int
 }
 
 func NewItemStrategy(db *sql.DB, dataDir string) ItemStrategy {
@@ -82,45 +81,10 @@ func (s ItemStrategy) Run() error {
 	return nil
 }
 
-// NullInt64 maps an empty CSV field to NULL (Valid=false).
-// csvutil calls it per field via the Unmarshaler interface, so the
-// "empty means unflingable" rule lives in one place.
-type NullInt64 struct {
-	sql.NullInt64
-}
-
-func (n *NullInt64) UnmarshalCSV(data []byte) error {
-	if len(data) == 0 {
-		n.Int64, n.Valid = 0, false
-		return nil
-	}
-	v, err := strconv.Atoi(string(data))
-	if err != nil {
-		return fmt.Errorf("invalid fling_power=%q. %w", string(data), err)
-	}
-	n.Int64, n.Valid = int64(v), true
-	return nil
-}
-
-// Raw CSV rows. Field mapping is declarative via `csv` tags (header names),
-// so column indexes and per-field Atoi boilerplate disappear.
 type itemCSVRow struct {
-	ID         int       `csv:"id"`
-	Identifier string    `csv:"identifier"`
-	FlingPower NullInt64 `csv:"fling_power"`
-}
-
-type itemNameCSVRow struct {
-	ItemID          int    `csv:"item_id"`
-	LocalLanguageID int    `csv:"local_language_id"`
-	Name            string `csv:"name"`
-}
-
-type itemProseCSVRow struct {
-	ItemID          int    `csv:"item_id"`
-	LocalLanguageID int    `csv:"local_language_id"`
-	ShortEffect     string `csv:"short_effect"`
-	Effect          string `csv:"effect"`
+	ID         int    `csv:"id"`
+	Identifier string `csv:"identifier"`
+	FlingPower int    `csv:"fling_power,omitempty"`
 }
 
 func loadItems(data []byte) ([]Item, map[int]int, error) {
@@ -143,13 +107,19 @@ func loadItems(data []byte) ([]Item, map[int]int, error) {
 		items = append(items, Item{
 			PokeapiID:  row.ID,
 			Slug:       row.Identifier,
-			FlingPower: row.FlingPower.NullInt64,
+			FlingPower: row.FlingPower,
 		})
 		itemsMap[row.ID] = len(items) - 1
 		seenSlugs[row.Identifier] = struct{}{}
 	}
 
 	return items, itemsMap, nil
+}
+
+type itemNameCSVRow struct {
+	ItemID          int    `csv:"item_id"`
+	LocalLanguageID int    `csv:"local_language_id"`
+	Name            string `csv:"name"`
 }
 
 func loadItemNames(data []byte, items []Item, itemsMap map[int]int) error {
@@ -169,6 +139,13 @@ func loadItemNames(data []byte, items []Item, itemsMap map[int]int) error {
 		items[itemIndex].DisplayName = row.Name
 	}
 	return nil
+}
+
+type itemProseCSVRow struct {
+	ItemID          int    `csv:"item_id"`
+	LocalLanguageID int    `csv:"local_language_id"`
+	ShortEffect     string `csv:"short_effect"`
+	Effect          string `csv:"effect"`
 }
 
 func loadItemEffects(data []byte, items []Item, itemsMap map[int]int) error {
