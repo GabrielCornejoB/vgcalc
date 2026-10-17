@@ -31,8 +31,6 @@ func NewAbilityStrategy(db *sql.DB, dataDir string) AbilityStrategy {
 	}
 }
 
-const pokeapiLanguageID = 9
-
 func (s AbilityStrategy) Run() error {
 	records, err := csv.ReadCSVFile(s.abilitiesCSVPath)
 	if err != nil {
