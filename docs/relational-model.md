@@ -16,8 +16,9 @@ structural only (no sources there).
 2. **Collapse cosmetics.** One row per battle-distinct variant only.
    `floette` (all 5 colors) = 1 row, `floette-eternal` = 1 row.
 3. **Gender variants are separate rows** with a lock column (see `fixed_gender`).
-4. **Megas live in their own table**, linked to base. Base table holds only
-   non-mega forms (e.g. `charizard`, never `charizard-mega-x`).
+4. **Megas (and primal reversions) live in their own table**, linked to base.
+   Base table holds only non-transformation forms (e.g. `charizard`, never
+   `charizard-mega-x` or `kyogre-primal`).
 5. **Denormalized FKs, not join tables**, for types (max 2, verified) and
    abilities (max 3, slots 1/2/3, verified in `pokemon_abilities.csv`).
 6. **Dumb masters, smart code.** Ability/move/item effects are engine branches,
@@ -40,7 +41,7 @@ structural only (no sources there).
 
 ## Table: `pokemon` (main, base forms only)
 
-One row per battle-distinct, non-mega variant.
+One row per battle-distinct, non-mega, non-primal variant.
 
 | Column | Type | Notes | PokeAPI source |
 |---|---|---|---|
@@ -55,27 +56,30 @@ One row per battle-distinct, non-mega variant.
 | `ability2_id` | FK -> `abilities.id`, NULL | NULL when mon has only 1 normal ability. | `pokemon_abilities` slot 2 |
 | `hidden_ability_id` | FK -> `abilities.id`, NULL | | `pokemon_abilities` slot 3 (`is_hidden=1`) |
 | `weight` | numeric | `battle_physical`: only weight kept. Needed for `Low Kick / Grass Knot / Heavy Slam / Heat Crash`. Height dropped (no damage math). Stored in **KG**. | `pokemon.weight / 10` (PokeAPI hectograms → KG) |
-| `fixed_gender` | `male \| female \| genderless \| NULL` | `NULL` = mixed, user picks. | Derived: `-male/-female` suffix + `pokemon_species.gender_rate = -1` → manual list |
+| `fixed_gender` | `male \| female \| genderless \| NULL` | `NULL` = mixed, user picks. | Derived: `-male/-female` slug suffix first (form-split variants of a mixed species, e.g. `indeedee`); else `pokemon_species.gender_rate`: `-1` genderless, `0` all-male (e.g. `tauros`), `8` all-female (e.g. `latias`); `1–7` mixed → NULL. No manual list needed. |
 
 Constraints:
 
 * `ability2_id` and `hidden_ability_id` nullable; no mon has >3 abilities.
 * `secondary_type_id` nullable; no mon has >2 types (Arceus/Silvally form-types out of scope).
-* No mega rows here. No duplicate cosmetic rows.
+* No mega or primal rows here — both live in `mega_evolution`. Other
+  battle-only forms (gmax, ultra, crowned, stellar) knowingly stay here for
+  now. No duplicate cosmetic rows.
 
 ## Table: `mega_evolution` (in-battle transformation)
 
-One row per mega (each with full battle stats, since stats/type/weight/ability all change).
+One row per mega or primal reversion (each with full battle stats, since
+stats/type/weight/ability all change).
 Base mon stays in `pokemon`; mega is never selected directly, only reached via trigger.
 
 | Column | Type | Notes | PokeAPI source |
 |---|---|---|---|
 | `id` | SERIAL PK | DB-generated surrogate. ETL omits it. Never the mega row's `pokemon.id` (e.g. 10034). | — |
 | `pokeapi_id` | int UNIQUE NOT NULL | Mega row's original source ID (e.g. 10034), distinct from `id`. ETL join key. | Mega row's `pokemon.id` |
-| `base_pokemon_id` | FK -> `pokemon.id` | E.g. `charizard`. | Derived: non-mega `pokemon` row sharing `species_id` (`pokemon_forms.is_mega=0` row) |
-| `slug` | text UNIQUE | E.g. `charizard-mega-x`, `venusaur-mega`, `rayquaza-mega`. | Mega row's `pokemon.identifier` |
-| `required_item_id` | FK -> `items.id`, NULL | Mega Stone, e.g. `charizardite-x`. NULL only for Rayquaza. | `pokemon_form_conditions.trigger_item_id` via mega `pokemon_forms` row (stones); cross-checked with calc `MEGA_STONES` maps |
-| `required_move_id` | FK -> `moves.id`, NULL | Only for Rayquaza: `dragon-ascent` (move 620). NULL for all stone megas. | Manual — no PokeAPI row (move-triggered); rule from `ps/mods/src/champions/scripts.ts:184 canMegaEvo` |
+| `base_pokemon_id` | FK -> `pokemon.id` | E.g. `charizard`. | Derived: non-transformation `pokemon` row sharing `species_id` (mega/primal rows excluded, `is_default` preferred — `pokemon_form_conditions.base_form_id` is populated for only 8 of 96 mega rows, unusable) |
+| `slug` | text UNIQUE | E.g. `charizard-mega-x`, `venusaur-mega`, `rayquaza-mega`, `kyogre-primal`. | Mega/primal row's `pokemon.identifier` |
+| `required_item_id` | FK -> `items.id`, NULL | Mega Stone (e.g. `charizardite-x`) or Primal Orb (blue/red-orb). NULL only for Rayquaza. | `pokemon_form_conditions.trigger_item_id` via mega/primal `pokemon_forms` row (stones, orbs) |
+| `required_move_id` | FK -> `moves.id`, NULL | Only for Rayquaza: `dragon-ascent` (move 620). NULL for all stone megas and primals. | Manual — no PokeAPI row (move-triggered); rule from `ps/mods/src/champions/scripts.ts:184 canMegaEvo` |
 | `ability_id` | FK -> `abilities.id` | **Single fixed ability.** Megas have exactly 1 (verified: `venusaur-mega -> 47`, `charizard-mega-x -> 181`, `charizard-mega-y -> 70`). No ability2/hidden. | Mega row's `pokemon_abilities` slot 1 |
 | `primary_type_id` | FK -> `types.id` | Mega can retype (e.g. `charizard-mega-x` Fire/Dragon vs base Fire/Flying). | Mega row's `pokemon_types` slot 1 |
 | `secondary_type_id` | FK -> `types.id`, NULL | | Mega row's `pokemon_types` slot 2 |
@@ -84,20 +88,32 @@ Base mon stays in `pokemon`; mega is never selected directly, only reached via t
 
 Trigger rule: exactly one of `required_item_id / required_move_id` is NOT NULL.
 
-### Stone-less exceptions (checked against live source)
+### Stone-less / non-stone rows (checked against live source)
+
+All three rows below are **included in the seed** (`vgcalc.mega_evolution`).
+Whether they are playable in a given regulation is a `regulation_pokemon`
+curation concern, not a seed concern.
 
 * **Rayquaza-Mega** (`pokemon 10079`, form `10181 is_mega=1,is_battle_only=1`):
   no stone. `ps/mods/src/champions/scripts.ts:184 canMegaEvo` returns the mega
   iff base moves include `dragon-ascent` and item is not a Z-move. Ability `191 Delta Stream`.
-  PokeAPI has **no** `pokemon_form_conditions` row for it (move-triggered, not item-triggered).
+  PokeAPI has **no** `pokemon_form_conditions` row for it (move-triggered, not
+  item-triggered), so the ETL pins it via explicit constants
+  (`rayquazaMegaPokeapiID = 10079`, `dragonAscentPokeapiID = 620`) and stores
+  `required_move_id` with `required_item_id` NULL.
 * **Kyogre-Primal** (`10077`, ability `189 Primordial Sea`) requires `Blue Orb (468)`;
   **Groudon-Primal** (`10078`, ability `190 Desolate Land`) requires `Red Orb (467)`.
-  In PokeAPI they are `is_mega=0,is_battle_only=1` with `form_conditions` rows
-  `10179 -> item 468`, `10180 -> item 467`. Same table shape as megas.
+  In PokeAPI they are `is_mega=0,is_battle_only=1,form_identifier="primal"` with
+  `form_conditions` rows `10179 -> item 468`, `10180 -> item 467`. Same table
+  shape as megas; the `form_identifier == "primal"` discriminator is what keeps
+  ultra necrozma / crowned zacian-zamazenta / terapagos-stellar (also
+  battle-only + item-triggered) out.
 * **Champions legality:** `ps/mods/src/champions/formats-data.ts:2081-2104` marks
   `kyogre / kyogreprimal / groudon / groudonprimal / rayquaza / rayquazamega`
-  as `Illegal`. So in practice the Champions seed only holds stone megas;
-  Rayquaza/primals documented here for shape completeness, excluded from seed.
+  as `Illegal`. They are still seeded — banning them from a regulation happens
+  by leaving them out of `regulation_pokemon`, never by dropping seed rows.
+* **Speculative megas** (e.g. `tatsugiri-drop-mega`) have a trigger item but no
+  confirmed ability in `pokemon_abilities`; the ETL skips them (no usable data).
 
 ## Table: `types` (master, slim)
 
@@ -257,8 +273,9 @@ for now, listed so nothing is lost:
    row's 3; moves ∈ `pokemon_moves`; mega needs stone + base; item/moves/nature
    legal. No constraints for these in base tables yet.
 3. **Manual seed overlays.** Variety `display_name`s (no per-variety EN source);
-   `fixed_gender` list; `is_slicing`/`is_wind`; Rayquaza `required_move_id`;
-   `regulations` + `regulation_pokemon` curation.
+   `is_slicing`/`is_wind`; Rayquaza `required_move_id`;
+   `regulations` + `regulation_pokemon` curation. (`fixed_gender` removed from
+   this list — fully derived from slug suffix + `gender_rate`, see `pokemon`.)
 4. **Units — decided: KG.** `weight` stored in KG (`pokemon.weight / 10`).
 5. **`is_current` exactly-one invariant.** Needs enforcement (partial unique
    index or app check) — declared, not enforced.
