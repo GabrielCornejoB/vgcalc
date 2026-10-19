@@ -48,6 +48,9 @@ func main() {
 		etl.NewNatureStrategy(db, dataDir),
 		etl.NewItemStrategy(db, dataDir),
 		etl.NewMoveStrategy(db, dataDir),
+		etl.NewPokemonStrategy(db, dataDir),
+		etl.NewMegaEvolutionStrategy(db, dataDir),
+		etl.NewPokemonMovesStrategy(db, dataDir),
 	}
 
 	for _, strategy := range strategies {
