@@ -39,6 +39,13 @@ type PokemonFormCSVRow struct {
 	IsBattleOnly   int    `csv:"is_battle_only"`
 }
 
+type PokemonMoveCSVRow struct {
+	PokemonID      int `csv:"pokemon_id"`
+	VersionGroupID int `csv:"version_group_id"`
+	MoveID         int `csv:"move_id"`
+	MethodID       int `csv:"pokemon_move_method_id"`
+}
+
 type PokemonSpeciesCSVRow struct {
 	ID         int `csv:"id"`
 	GenderRate int `csv:"gender_rate"`

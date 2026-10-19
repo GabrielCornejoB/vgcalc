@@ -1,0 +1,98 @@
+package etl
+
+import (
+	"database/sql"
+	"fmt"
+
+	"vgcalc/etl/internal/csv"
+)
+
+const (
+	// version_group_id 32 is "champions" (25 is "scarlet-violet").
+	championsVersionGroupID = 32
+	// pokemon_move_method_id 12 is "train", the only method present in that
+	// version group (older groups use 1 level-up, 2 egg, 3 tutor, 4 machine).
+	trainMoveMethodID = 12
+)
+
+type PokemonMovesStrategy struct {
+	pokemonMovesCSVPath string
+	DB                  *sql.DB
+}
+
+type PokemonMove struct {
+	PokemonID int
+	MoveID    int
+}
+
+func NewPokemonMovesStrategy(db *sql.DB, dataDir string) PokemonMovesStrategy {
+	return PokemonMovesStrategy{
+		DB:                  db,
+		pokemonMovesCSVPath: dataDir + "pokemon_moves.csv",
+	}
+}
+
+func (s PokemonMovesStrategy) Run() error {
+	rows, err := csv.LoadFile[PokemonMoveCSVRow](s.pokemonMovesCSVPath)
+	if err != nil {
+		return fmt.Errorf("PokemonMovesStrategy: %w", err)
+	}
+
+	pokemonMap, err := loadPokeapiIDMap(s.DB, vgcalcPokemon)
+	if err != nil {
+		return fmt.Errorf("PokemonMovesStrategy: %w", err)
+	}
+	movesMap, err := loadPokeapiIDMap(s.DB, vgcalcMoves)
+	if err != nil {
+		return fmt.Errorf("PokemonMovesStrategy: %w", err)
+	}
+
+	pokemonMoves, err := buildPokemonMoves(rows, pokemonMap, movesMap)
+	if err != nil {
+		return fmt.Errorf("PokemonMovesStrategy: %w", err)
+	}
+
+	// DO NOTHING (not UPDATE): the row has no columns besides its key, and it
+	// also absorbs any duplicate pair left in the source.
+	const query = `INSERT INTO vgcalc.pokemon_moves (pokemon_id, move_id) VALUES ($1, $2)
+	ON CONFLICT (pokemon_id, move_id) DO NOTHING`
+
+	tx, err := s.DB.Begin()
+	if err != nil {
+		return fmt.Errorf("PokemonMovesStrategy: error starting transaction. %w", err)
+	}
+	defer tx.Rollback()
+
+	for _, pokemonMove := range pokemonMoves {
+		if _, err := tx.Exec(query, pokemonMove.PokemonID, pokemonMove.MoveID); err != nil {
+			return fmt.Errorf("PokemonMovesStrategy: error inserting pokemon_move %v. %w", pokemonMove, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("PokemonMovesStrategy: error committing transaction. %w", err)
+	}
+
+	return nil
+}
+
+func buildPokemonMoves(rows []PokemonMoveCSVRow, pokemonMap map[int]int, movesMap map[int]int) ([]PokemonMove, error) {
+	pokemonMoves := make([]PokemonMove, 0, len(rows))
+	for _, row := range rows {
+		if row.VersionGroupID != championsVersionGroupID || row.MethodID != trainMoveMethodID {
+			continue
+		}
+		// Megas and primals live in mega_evolution, so their rows have no
+		// vgcalc.pokemon match; they inherit the base pokemon's move list.
+		pokemonID, ok := pokemonMap[row.PokemonID]
+		if !ok {
+			continue
+		}
+		moveID, ok := movesMap[row.MoveID]
+		if !ok {
+			return nil, fmt.Errorf("buildPokemonMoves(): unknown move_id=%d for pokemon_id=%d", row.MoveID, row.PokemonID)
+		}
+		pokemonMoves = append(pokemonMoves, PokemonMove{PokemonID: pokemonID, MoveID: moveID})
+	}
+
+	return pokemonMoves, nil
+}
