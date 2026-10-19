@@ -84,7 +84,7 @@ func (s MoveStrategy) Run() error {
 		return fmt.Errorf("MoveStrategy: %w", err)
 	}
 
-	typesMap, err := loadTypesIDMap(s.DB)
+	typesMap, err := loadPokeapiIDMap(s.DB, vgcalcTypes)
 	if err != nil {
 		return fmt.Errorf("MoveStrategy: %w", err)
 	}

@@ -30,7 +30,7 @@ func (s TypeEfficacyStrategy) Run() error {
 
 	typeEfficacies := parseTypeEfficacies(rows)
 
-	typesMap, err := loadTypesIDMap(s.DB)
+	typesMap, err := loadPokeapiIDMap(s.DB, vgcalcTypes)
 	if err != nil {
 		return fmt.Errorf("TypeEfficacyStrategy: %w", err)
 	}
@@ -82,25 +82,4 @@ func parseTypeEfficacies(rows []typeEfficacyCSVRow) []TypeEfficacy {
 	}
 
 	return typeEfficacies
-}
-
-func loadTypesIDMap(db *sql.DB) (map[int]int, error) {
-	rows, err := db.Query("SELECT id, pokeapi_id FROM vgcalc.types")
-	if err != nil {
-		return nil, fmt.Errorf("loadTypesIDMap(): failed to query existing types. %w", err)
-	}
-	defer rows.Close()
-	typesMap := make(map[int]int)
-	for rows.Next() {
-		var dbID, pokeapiID int
-		if err := rows.Scan(&dbID, &pokeapiID); err != nil {
-			return nil, fmt.Errorf("loadTypesIDMap(): %w", err)
-		}
-		typesMap[pokeapiID] = dbID
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("loadTypesIDMap(): %w", err)
-	}
-
-	return typesMap, nil
 }
