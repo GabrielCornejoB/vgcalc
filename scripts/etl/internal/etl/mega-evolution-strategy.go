@@ -114,6 +114,10 @@ func (s MegaEvolutionStrategy) Run() error {
 		return err
 	}
 
+	return upsertMegaEvolutions(s.DB, megas)
+}
+
+func upsertMegaEvolutions(db *sql.DB, megas []MegaEvolution) error {
 	const query = `INSERT INTO vgcalc.mega_evolution (
 		pokeapi_id, base_pokemon_id, slug, required_item_id, required_move_id,
 		ability_id, primary_type_id, secondary_type_id,
@@ -136,7 +140,7 @@ func (s MegaEvolutionStrategy) Run() error {
 		spe = EXCLUDED.spe,
 		weight = EXCLUDED.weight`
 
-	return inTx(s.DB, func(tx *sql.Tx) error {
+	return inTx(db, func(tx *sql.Tx) error {
 		for _, mega := range megas {
 			_, err := tx.Exec(query,
 				mega.PokeapiID, mega.BasePokemonID, mega.Slug, mega.RequiredItemID, mega.RequiredMoveID,

@@ -109,6 +109,10 @@ func (s PokemonStrategy) Run() error {
 		return err
 	}
 
+	return upsertPokemon(s.DB, pokemons)
+}
+
+func upsertPokemon(db *sql.DB, pokemons []Pokemon) error {
 	const query = `INSERT INTO vgcalc.pokemon (
 		pokeapi_id, slug, display_name, primary_type_id, secondary_type_id,
 		hp, atk, def, spa, spd, spe,
@@ -132,7 +136,7 @@ func (s PokemonStrategy) Run() error {
 		weight = EXCLUDED.weight,
 		fixed_gender = EXCLUDED.fixed_gender`
 
-	return inTx(s.DB, func(tx *sql.Tx) error {
+	return inTx(db, func(tx *sql.Tx) error {
 		for _, pokemon := range pokemons {
 			_, err := tx.Exec(query,
 				pokemon.PokeapiID, pokemon.Slug, pokemon.DisplayName, pokemon.PrimaryTypeID, pokemon.SecondaryTypeID,

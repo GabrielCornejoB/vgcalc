@@ -122,6 +122,10 @@ func (s MoveStrategy) Run() error {
 
 	applyMoveMeta(metaRows, moves, movesMap)
 
+	return upsertMoves(s.DB, moves)
+}
+
+func upsertMoves(db *sql.DB, moves []Move) error {
 	const query = `INSERT INTO vgcalc.moves (
 		pokeapi_id, slug, display_name, short_effect, effect,
 		type_id, category, power, accuracy, pp, priority, target,
@@ -155,7 +159,7 @@ func (s MoveStrategy) Run() error {
 		min_hits = EXCLUDED.min_hits,
 		max_hits = EXCLUDED.max_hits`
 
-	return inTx(s.DB, func(tx *sql.Tx) error {
+	return inTx(db, func(tx *sql.Tx) error {
 		for _, move := range moves {
 			_, err := tx.Exec(query,
 				move.PokeapiID, move.Slug, move.DisplayName, move.ShortEffect, move.Effect,
