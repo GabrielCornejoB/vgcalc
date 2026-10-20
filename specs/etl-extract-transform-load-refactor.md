@@ -1,20 +1,23 @@
 # Spec — ETL extract / transform / load refactor (all strategies)
 
-Status: **READY TO IMPLEMENT** (2026-10-20). All decisions in §6 are closed.
-The ability strategy pilot (§7) was **successful** and approved by the user;
-the rest of the plan (§4) can start.
+Status: **IN PROGRESS** (2026-10-20). All decisions in §6 are closed.
+Done: §4 steps 1 and 2, and 5 of the 9 strategies (ability, type, nature, item,
+type_efficacy; see §3.1–3.5). Remaining: move, pokemon_moves, pokemon,
+mega_evolution (see §4.1 for the order and dependencies).
 
 ## Handoff (read this first)
 
-Branch `feature/etl`. Nothing in §4 has been started yet; the only code change
-so far is the ability pilot (§7), committed together with this spec.
+Branch `feature/etl`. Progress is tracked in §4.1; per-strategy notes for the
+finished ones are in §3.1–3.5. Nothing is pushed.
 
 - **Reference implementation:** `scripts/etl/internal/etl/ability-strategy.go`
   and `scripts/etl/internal/entity/ability.go`. Copy their shape for every
   other strategy (§2.1 conventions).
-- **Next step:** §4 step 1 (rename read-side helpers), then follow §4 in order.
-  Ability is already done, so skip it in step 3.
-- **Before step 1**, take the table snapshots described in §5.
+- **Next step:** `move` strategy, then follow the order in §4.1.
+- **Snapshots** (§5) were taken before step 1 and live in the session
+  scratchpad (`before/<table>.tsv`, ordered by `pokeapi_id`, junction tables by
+  their composite PK). They are not in the repo; retake them from a pre-refactor
+  checkout if the scratchpad is gone.
 - **Conventions** (from `AGENTS.md` and the previous spec): conventional
   commits (`refactor(etl): …`), one commit per §4 item, commit trailer as in
   earlier commits, never push unless asked, say "calc (calc is short for
@@ -178,6 +181,57 @@ Constants and enum maps (`damageClassIDToSlug`, `moveTargetIDToSlug`,
 Row structs used by one strategy stay in that strategy's file (unchanged
 convention). Shared pokemon*.csv row structs move to `pokemon-source.go`.
 
+### 3.1 ability (pilot)
+
+Done in the pilot, see §7. `entity.Ability`, `abilitySource{abilityRows, names, prose}`.
+
+### 3.2 type
+
+- `entity/type.go`: `entity.Type{PokeapiID, Slug, DisplayName}`; `Validate()`
+  checks `pokeapi_id > 0` and `slug != ""` (no CHECKs/FKs in the table).
+- `type-strategy.go`: `typeSource{typeRows}`, `transformTypes(src)` (title-case
+  display name), `loadTypes(db, rows)`. The old `PokemonType` struct is gone.
+  `transformTypes` is the former `loadTypes` (§2.2 rename).
+
+### 3.3 nature
+
+- `entity/nature.go`: `entity.Nature`; `Validate()` checks the identity columns
+  and that plus/minus stat is one of atk/def/spa/spd/spe (mirrors the DB CHECK).
+  `display_name` is not validated (D2 a).
+- `nature-strategy.go`: `natureSource{natureRows, names}` (English names only,
+  by nature id). `transformNatures` maps stat ids with `statIDToSlug` (unknown →
+  error, message prefix is now `transformNatures():`). `buildNatures` and
+  `applyNatureNames` are gone.
+
+### 3.4 item
+
+- `entity/item.go`: `entity.Item`; `Validate()` checks the identity columns and
+  `fling_power >= 0`.
+- `item-strategy.go`: `itemSource{itemRows, names, prose}` (English only; the
+  last row per item wins, as before). `transformItems` keeps the duplicate-slug
+  filter (first occurrence wins, e.g. roseli-berry 723 vs 2279) with its
+  comment. `buildItems`, `applyItemNames`, `applyItemEffects` are gone.
+- Names/prose are now built for every item in extract instead of only kept
+  ones; only kept items are read, so output is unchanged.
+
+### 3.5 type_efficacy
+
+- `entity/type-efficacy.go`: `entity.TypeEfficacy{AttackTypeID, TargetTypeID,
+  Multiplier}` holds **vgcalc** type ids. `Validate()` requires both ids ≠ 0
+  and multiplier ∈ {0, 0.5, 1, 2}.
+- `type-efficacy-strategy.go`: `typeEfficacySource{efficacyRows, typesMap}`.
+  Following D1 (b), `transformTypeEfficacies` resolves attack/target through
+  `typesMap` (unknown id → same errors as before). The FK lookup is no longer
+  inside the `inTx` loop. `parseTypeEfficacies` is gone.
+
+### Verification of 3.1–3.5
+
+`gofmt` / `go vet` clean after each. For each, the table's non-key columns were
+blanked (`TRUNCATE` for `type_efficacy`), the ETL rerun, and the export diffed
+against the snapshot: `abilities` 374, `types` 21, `natures` 25, `items` 2222
+and `type_efficacy` 324 rows are byte-identical. `moves`, `pokemon` and
+`mega_evolution` were also re-exported after the rerun and are identical.
+
 ## 4. Order of work (one commit each)
 
 1. `refactor(etl): rename read-side load helpers` (§2.2).
@@ -190,6 +244,35 @@ convention). Shared pokemon*.csv row structs move to `pokemon-source.go`.
 4. `refactor(etl): add shared pokemon source` + pokemon strategy.
 5. mega_evolution strategy; delete `pokemon-rows.go`.
 6. Update this spec's status/handoff.
+
+### 4.1 Progress and remaining order
+
+Done (commits on `feature/etl`):
+
+| # | Item | Commit subject |
+|---|---|---|
+| 1 | Rename read-side load helpers | `rename read-side load helpers` |
+| 2 | Entity package shared value types | `add entity package shared value types` |
+| 3a | ability (pilot) | `reshape ability strategy into extract, transform, load` |
+| 3b | type | `reshape type strategy into extract, transform, load` |
+| 3c | nature | `reshape nature strategy into extract, transform, load` |
+| 3d | item | `reshape item strategy into extract, transform, load` |
+| 3e | type_efficacy | `reshape type efficacy strategy into extract, transform, load` |
+
+Remaining, in the order they must be executed:
+
+| Order | Strategy | Depends on (code) | Depends on (DB rows at run time) | Notes |
+|---|---|---|---|---|
+| 1 | **move** | none | `types` | Largest of the small ones; removes `movesPerEffect`. Resolves `type_id` in transform (D1 b). |
+| 2 | **pokemon_moves** | none | `pokemon`, `moves` | Unknown pokemon → skip, unknown move → error. Its verification needs both tables populated, so run the full ETL first. Can swap with move once the DB is populated, but keeping move first matches the ETL run order in `main.go`. |
+| 3 | **pokemon** (+ shared `pokemon-source.go`) | `entity.Stats/TypeSlots/AbilitySlots` (done) | `types`, `abilities` | Creates `extractPokemonSource`, which mega_evolution reuses, so it must come before mega. Do not delete `pokemon-rows.go` yet: mega still uses it. |
+| 4 | **mega_evolution** | `pokemon-source.go` from 3 | `types`, `abilities`, `items`, `moves`, `pokemon` | Last. Deletes `pokemon-rows.go`. Needs `itemIDByMega`, `basePokemonIDBySpecies` and `dragonAscentMoveID` extras. |
+| 5 | Final verification + spec update (§4 step 6) | all above | — | Reset DB, full `go run .`, diff all 9 tables, check expected counts (§5.4). |
+
+Run-time DB order (unchanged, `main.go`): type → type_efficacy → ability →
+nature → item → move → pokemon → mega_evolution → pokemon_moves. A refactor
+may be done in a different order from this, but each strategy can only be
+verified once its FK tables are populated.
 
 ## 5. Verification
 
