@@ -8,35 +8,13 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"vgcalc/etl/internal/csv"
+	"vgcalc/etl/internal/entity"
 )
 
 type PokemonStrategy struct {
-	pokemonCSVPath          string
-	pokemonStatsCSVPath     string
-	pokemonTypesCSVPath     string
-	pokemonAbilitiesCSVPath string
-	pokemonFormsCSVPath     string
-	pokemonSpeciesCSVPath   string
-	DB                      *sql.DB
-}
-
-type Pokemon struct {
-	PokeapiID       int
-	Slug            string
-	DisplayName     string
-	PrimaryTypeID   int
-	SecondaryTypeID *int
-	HP              int
-	Atk             int
-	Def             int
-	SpA             int
-	SpD             int
-	Spe             int
-	Ability1ID      int
-	Ability2ID      *int
-	HiddenAbilityID *int
-	Weight          float64
-	FixedGender     *string
+	dataDir               string
+	pokemonSpeciesCSVPath string
+	DB                    *sql.DB
 }
 
 type pokemonSpeciesCSVRow struct {
@@ -46,87 +24,114 @@ type pokemonSpeciesCSVRow struct {
 
 func NewPokemonStrategy(db *sql.DB, dataDir string) PokemonStrategy {
 	return PokemonStrategy{
-		DB:                      db,
-		pokemonCSVPath:          dataDir + "pokemon.csv",
-		pokemonStatsCSVPath:     dataDir + "pokemon_stats.csv",
-		pokemonTypesCSVPath:     dataDir + "pokemon_types.csv",
-		pokemonAbilitiesCSVPath: dataDir + "pokemon_abilities.csv",
-		pokemonFormsCSVPath:     dataDir + "pokemon_forms.csv",
-		pokemonSpeciesCSVPath:   dataDir + "pokemon_species.csv",
+		DB:                    db,
+		dataDir:               dataDir,
+		pokemonSpeciesCSVPath: dataDir + "pokemon_species.csv",
 	}
 }
 
-// pokemonInputs is everything Run needs from disk and the DB:
-// the source CSV rows plus the pokeapi_id -> surrogate id maps.
-type pokemonInputs struct {
-	pokemonRows []PokemonCSVRow
-	formRows    []PokemonFormCSVRow
-	speciesRows []pokemonSpeciesCSVRow
-	statRows    []PokemonStatCSVRow
-	typeRows    []PokemonTypeCSVRow
-	abilityRows []PokemonAbilityCSVRow
-
-	typesMap     map[int]int
-	abilitiesMap map[int]int
-}
-
 func (s PokemonStrategy) Run() error {
-	in, err := s.loadInputs()
+	src, err := s.extract()
+	if err != nil {
+		return err
+	}
+	pokemons, err := transformPokemon(src)
 	if err != nil {
 		return err
 	}
 
-	megaIDs := megaEvolutionPokemonIDs(in.formRows)
-	speciesGenders := speciesFixedGenders(in.speciesRows)
-	pokemons, pokemonsMap := buildPokemon(in.pokemonRows, megaIDs, speciesGenders)
-
-	if err := applyPokemonStats(in.statRows, pokemons, pokemonsMap); err != nil {
-		return err
-	}
-	if err := applyPokemonTypes(in.typeRows, pokemons, pokemonsMap, in.typesMap); err != nil {
-		return err
-	}
-	if err := applyPokemonAbilities(in.abilityRows, pokemons, pokemonsMap, in.abilitiesMap); err != nil {
-		return err
-	}
-
-	return upsertPokemon(s.DB, pokemons)
+	return loadPokemon(s.DB, pokemons)
 }
 
-func (s PokemonStrategy) loadInputs() (pokemonInputs, error) {
-	var in pokemonInputs
+type pokemonStrategySource struct {
+	pokemonSource
+	fixedGenderBySpecies map[int]string
+}
+
+func (s PokemonStrategy) extract() (pokemonStrategySource, error) {
+	var src pokemonStrategySource
 	var err error
 
-	if in.pokemonRows, err = csv.ReadFile[PokemonCSVRow](s.pokemonCSVPath); err != nil {
-		return in, err
+	if src.pokemonSource, err = extractPokemonSource(s.DB, s.dataDir); err != nil {
+		return src, err
 	}
-	if in.formRows, err = csv.ReadFile[PokemonFormCSVRow](s.pokemonFormsCSVPath); err != nil {
-		return in, err
+	speciesRows, err := csv.ReadFile[pokemonSpeciesCSVRow](s.pokemonSpeciesCSVPath)
+	if err != nil {
+		return src, err
 	}
-	if in.speciesRows, err = csv.ReadFile[pokemonSpeciesCSVRow](s.pokemonSpeciesCSVPath); err != nil {
-		return in, err
-	}
-	if in.statRows, err = csv.ReadFile[PokemonStatCSVRow](s.pokemonStatsCSVPath); err != nil {
-		return in, err
-	}
-	if in.typeRows, err = csv.ReadFile[PokemonTypeCSVRow](s.pokemonTypesCSVPath); err != nil {
-		return in, err
-	}
-	if in.abilityRows, err = csv.ReadFile[PokemonAbilityCSVRow](s.pokemonAbilitiesCSVPath); err != nil {
-		return in, err
-	}
+	src.fixedGenderBySpecies = speciesFixedGenders(speciesRows)
 
-	if in.typesMap, err = queryPokeapiIDMap(s.DB, vgcalcTypes); err != nil {
-		return in, err
-	}
-	if in.abilitiesMap, err = queryPokeapiIDMap(s.DB, vgcalcAbilities); err != nil {
-		return in, err
-	}
-
-	return in, nil
+	return src, nil
 }
 
-func upsertPokemon(db *sql.DB, pokemons []Pokemon) error {
+func transformPokemon(src pokemonStrategySource) ([]entity.Pokemon, error) {
+	caser := cases.Title(language.English)
+	pokemons := make([]entity.Pokemon, 0, len(src.pokemonRows))
+	for _, row := range src.pokemonRows {
+		if _, excluded := src.megaIDs[row.ID]; excluded {
+			continue
+		}
+		// Source rows with non-positive weight cannot satisfy CHECK (weight > 0).
+		// Currently only eternatus-eternamax (10190, weight 0, not playable).
+		if row.Weight <= 0 {
+			continue
+		}
+		pokemon := entity.Pokemon{
+			PokeapiID:    row.ID,
+			Slug:         row.Identifier,
+			DisplayName:  caser.String(strings.ReplaceAll(row.Identifier, "-", " ")),
+			Stats:        src.stats[row.ID],
+			TypeSlots:    src.types[row.ID],
+			AbilitySlots: src.abilities[row.ID],
+			Weight:       float64(row.Weight) / 10,
+			FixedGender:  pokemonFixedGender(row.Identifier, src.fixedGenderBySpecies[row.SpeciesID]),
+		}
+		if err := pokemon.Validate(); err != nil {
+			return nil, fmt.Errorf("transformPokemon(): %w", err)
+		}
+		pokemons = append(pokemons, pokemon)
+	}
+
+	return pokemons, nil
+}
+
+// speciesFixedGenders keeps only species with a locked gender:
+// gender_rate is the female chance in eighths, so -1 is genderless,
+// 0 is all-male and 8 is all-female; 1-7 are mixed and stay out of the map.
+func speciesFixedGenders(rows []pokemonSpeciesCSVRow) map[int]string {
+	speciesGenders := make(map[int]string, len(rows))
+	for _, row := range rows {
+		switch row.GenderRate {
+		case -1:
+			speciesGenders[row.ID] = "genderless"
+		case 0:
+			speciesGenders[row.ID] = "male"
+		case 8:
+			speciesGenders[row.ID] = "female"
+		}
+	}
+
+	return speciesGenders
+}
+
+// pokemonFixedGender prefers the slug suffix, which is the only signal for
+// form-split variants of a mixed species (e.g. indeedee-male, indeedee-female).
+func pokemonFixedGender(slug string, speciesGender string) *string {
+	gender := speciesGender
+	switch {
+	case strings.HasSuffix(slug, "-male"):
+		gender = "male"
+	case strings.HasSuffix(slug, "-female"):
+		gender = "female"
+	}
+	if gender == "" {
+		return nil
+	}
+
+	return &gender
+}
+
+func loadPokemon(db *sql.DB, pokemons []entity.Pokemon) error {
 	const query = `INSERT INTO vgcalc.pokemon (
 		pokeapi_id, slug, display_name, primary_type_id, secondary_type_id,
 		hp, atk, def, spa, spd, spe,
@@ -153,9 +158,9 @@ func upsertPokemon(db *sql.DB, pokemons []Pokemon) error {
 	return inTx(db, func(tx *sql.Tx) error {
 		for _, pokemon := range pokemons {
 			_, err := tx.Exec(query,
-				pokemon.PokeapiID, pokemon.Slug, pokemon.DisplayName, pokemon.PrimaryTypeID, pokemon.SecondaryTypeID,
+				pokemon.PokeapiID, pokemon.Slug, pokemon.DisplayName, pokemon.Primary, pokemon.Secondary,
 				pokemon.HP, pokemon.Atk, pokemon.Def, pokemon.SpA, pokemon.SpD, pokemon.Spe,
-				pokemon.Ability1ID, pokemon.Ability2ID, pokemon.HiddenAbilityID, pokemon.Weight, pokemon.FixedGender)
+				pokemon.Slot1, pokemon.Slot2, pokemon.Hidden, pokemon.Weight, pokemon.FixedGender)
 			if err != nil {
 				return fmt.Errorf("error inserting pokemon %v. %w", pokemon, err)
 			}
@@ -163,168 +168,4 @@ func upsertPokemon(db *sql.DB, pokemons []Pokemon) error {
 
 		return nil
 	})
-}
-
-// megaEvolutionPokemonIDs returns the pokemon ids behind every row that
-// belongs in vgcalc.mega_evolution: is_mega=1 forms plus the two primals
-// (kyogre/groudon, is_battle_only=1 with form_identifier "primal").
-// Other battle-only forms (gmax, ultra, crowned, stellar) are not megas
-// and stay in vgcalc.pokemon.
-func megaEvolutionPokemonIDs(rows []PokemonFormCSVRow) map[int]struct{} {
-	megaIDs := make(map[int]struct{})
-	for _, row := range rows {
-		if row.IsMega == 1 || (row.IsBattleOnly == 1 && row.FormIdentifier == "primal") {
-			megaIDs[row.PokemonID] = struct{}{}
-		}
-	}
-
-	return megaIDs
-}
-
-// speciesFixedGenders keeps only species with a locked gender:
-// gender_rate is the female chance in eighths, so -1 is genderless,
-// 0 is all-male and 8 is all-female; 1-7 are mixed and stay out of the map.
-func speciesFixedGenders(rows []pokemonSpeciesCSVRow) map[int]string {
-	speciesGenders := make(map[int]string, len(rows))
-	for _, row := range rows {
-		switch row.GenderRate {
-		case -1:
-			speciesGenders[row.ID] = "genderless"
-		case 0:
-			speciesGenders[row.ID] = "male"
-		case 8:
-			speciesGenders[row.ID] = "female"
-		}
-	}
-
-	return speciesGenders
-}
-
-func buildPokemon(
-	rows []PokemonCSVRow, megaIDs map[int]struct{}, speciesGenders map[int]string,
-) ([]Pokemon, map[int]int) {
-	caser := cases.Title(language.English)
-	pokemons := make([]Pokemon, 0, len(rows))
-	pokemonsMap := make(map[int]int, len(rows))
-	for _, row := range rows {
-		if _, excluded := megaIDs[row.ID]; excluded {
-			continue
-		}
-		// Source rows with non-positive weight cannot satisfy CHECK (weight > 0).
-		// Currently only eternatus-eternamax (10190, weight 0, not playable).
-		if row.Weight <= 0 {
-			continue
-		}
-		pokemons = append(pokemons, Pokemon{
-			PokeapiID:   row.ID,
-			Slug:        row.Identifier,
-			DisplayName: caser.String(strings.ReplaceAll(row.Identifier, "-", " ")),
-			Weight:      float64(row.Weight) / 10,
-			FixedGender: pokemonFixedGender(row.Identifier, speciesGenders[row.SpeciesID]),
-		})
-		pokemonsMap[row.ID] = len(pokemons) - 1
-	}
-
-	return pokemons, pokemonsMap
-}
-
-// pokemonFixedGender prefers the slug suffix, which is the only signal for
-// form-split variants of a mixed species (e.g. indeedee-male, indeedee-female).
-func pokemonFixedGender(slug string, speciesGender string) *string {
-	gender := speciesGender
-	switch {
-	case strings.HasSuffix(slug, "-male"):
-		gender = "male"
-	case strings.HasSuffix(slug, "-female"):
-		gender = "female"
-	}
-	if gender == "" {
-		return nil
-	}
-
-	return &gender
-}
-
-func applyPokemonStats(rows []PokemonStatCSVRow, pokemons []Pokemon, pokemonsMap map[int]int) error {
-	for _, row := range rows {
-		pokemonIndex, exists := pokemonsMap[row.PokemonID]
-		if !exists {
-			continue
-		}
-		switch row.StatID {
-		case statHP:
-			pokemons[pokemonIndex].HP = row.BaseStat
-		case statAtk:
-			pokemons[pokemonIndex].Atk = row.BaseStat
-		case statDef:
-			pokemons[pokemonIndex].Def = row.BaseStat
-		case statSpA:
-			pokemons[pokemonIndex].SpA = row.BaseStat
-		case statSpD:
-			pokemons[pokemonIndex].SpD = row.BaseStat
-		case statSpe:
-			pokemons[pokemonIndex].Spe = row.BaseStat
-		default:
-			return fmt.Errorf("applyPokemonStats(): unknown stat_id=%d for pokemon_id=%d", row.StatID, row.PokemonID)
-		}
-	}
-
-	return nil
-}
-
-func applyPokemonTypes(
-	rows []PokemonTypeCSVRow, pokemons []Pokemon, pokemonsMap map[int]int, typesMap map[int]int,
-) error {
-	for _, row := range rows {
-		pokemonIndex, exists := pokemonsMap[row.PokemonID]
-		if !exists {
-			continue
-		}
-		typeID, exists := typesMap[row.TypeID]
-		if !exists {
-			return fmt.Errorf("applyPokemonTypes(): unknown type_id=%d for pokemon_id=%d", row.TypeID, row.PokemonID)
-		}
-		switch row.Slot {
-		case 1:
-			pokemons[pokemonIndex].PrimaryTypeID = typeID
-		case 2:
-			secondaryTypeID := typeID
-			pokemons[pokemonIndex].SecondaryTypeID = &secondaryTypeID
-		default:
-			return fmt.Errorf("applyPokemonTypes(): unknown slot=%d for pokemon_id=%d", row.Slot, row.PokemonID)
-		}
-	}
-
-	return nil
-}
-
-func applyPokemonAbilities(rows []PokemonAbilityCSVRow, pokemons []Pokemon, pokemonsMap map[int]int,
-	abilitiesMap map[int]int) error {
-	for _, row := range rows {
-		pokemonIndex, exists := pokemonsMap[row.PokemonID]
-		if !exists {
-			continue
-		}
-		abilityID, exists := abilitiesMap[row.AbilityID]
-		if !exists {
-			return fmt.Errorf("applyPokemonAbilities(): unknown ability_id=%d for pokemon_id=%d",
-				row.AbilityID, row.PokemonID)
-		}
-		if row.IsHidden == 1 {
-			hiddenAbilityID := abilityID
-			pokemons[pokemonIndex].HiddenAbilityID = &hiddenAbilityID
-			continue
-		}
-		switch row.Slot {
-		case 1:
-			pokemons[pokemonIndex].Ability1ID = abilityID
-		case 2:
-			ability2ID := abilityID
-			pokemons[pokemonIndex].Ability2ID = &ability2ID
-		default:
-			return fmt.Errorf("applyPokemonAbilities(): unknown slot=%d for pokemon_id=%d", row.Slot, row.PokemonID)
-		}
-	}
-
-	return nil
 }

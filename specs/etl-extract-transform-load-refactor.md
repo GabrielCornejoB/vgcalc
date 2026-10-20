@@ -1,8 +1,8 @@
 # Spec — ETL extract / transform / load refactor (all strategies)
 
 Status: **IN PROGRESS** (2026-10-20). All decisions in §6 are closed.
-Done: §4 steps 1 and 2, and 7 of the 9 strategies (ability, type, nature, item,
-type_efficacy, move, pokemon_moves; see §3.1–3.7). Remaining: pokemon,
+Done: §4 steps 1 and 2, and 8 of the 9 strategies (ability, type, nature, item,
+type_efficacy, move, pokemon_moves, pokemon; see §3.1–3.8). Remaining:
 mega_evolution (see §4.1 for the order and dependencies).
 
 ## Handoff (read this first)
@@ -13,7 +13,7 @@ finished ones are in §3.1–3.5. Nothing is pushed.
 - **Reference implementation:** `scripts/etl/internal/etl/ability-strategy.go`
   and `scripts/etl/internal/entity/ability.go`. Copy their shape for every
   other strategy (§2.1 conventions).
-- **Next step:** `pokemon` strategy, then follow the order in §4.1.
+- **Next step:** `mega_evolution` strategy, then follow the order in §4.1.
 - **Snapshots** (§5) were taken before step 1 and live in the session
   scratchpad (`before/<table>.tsv`, ordered by `pokeapi_id`, junction tables by
   their composite PK). They are not in the repo; retake them from a pre-refactor
@@ -244,6 +244,21 @@ Done in the pilot, see §7. `entity.Ability`, `abilitySource{abilityRows, names,
   pokemon (megas), errors on unknown move (D1 b). `buildPokemonMoves` is gone.
 - Verified: `pokemon_moves` truncated, ETL rerun, 14,752 rows byte-identical.
 
+### 3.8 pokemon (+ shared pokemon source)
+
+- `entity/pokemon.go`: `entity.Pokemon` embeds `Stats`, `TypeSlots`,
+  `AbilitySlots`; `Validate()` per §3 table. `Stats.Validate()` (all ≥ 1) lives
+  in `entity/shared.go` so mega_evolution can reuse it.
+- `pokemon-source.go` (new, replaces the deleted `pokemon-rows.go`): the shared
+  `pokemon*.csv` row structs, `pokemonSource`, `extractPokemonSource`,
+  `megaEvolutionPokemonIDs` and `groupStats/groupTypes/groupAbilities`.
+  `mega-evolution-strategy.go` still compiles unchanged against it; its own
+  `apply*`/`loadInputs` go away in the mega step.
+- `pokemon-strategy.go`: `pokemonStrategySource` embeds `pokemonSource` plus
+  `fixedGenderBySpecies`. `PokemonStrategy` keeps `dataDir` for the shared extract.
+- Verified: `pokemon` blanked, ETL rerun; `pokemon` (1251), `mega_evolution`
+  (90) and `pokemon_moves` identical.
+
 ### Verification of 3.1–3.5
 
 `gofmt` / `go vet` clean after each. For each, the table's non-key columns were
@@ -280,14 +295,14 @@ Done (commits on `feature/etl`):
 | 3e | type_efficacy | `reshape type efficacy strategy into extract, transform, load` |
 | 3f | move | `reshape move strategy into extract, transform, load` |
 | 3g | pokemon_moves | `reshape pokemon moves strategy into extract, transform, load` |
+| 4 | pokemon + shared source | `reshape pokemon strategy into extract, transform, load` |
 
 Remaining, in the order they must be executed:
 
 | Order | Strategy | Depends on (code) | Depends on (DB rows at run time) | Notes |
 |---|---|---|---|---|
-| 1 | **pokemon** (+ shared `pokemon-source.go`) | `entity.Stats/TypeSlots/AbilitySlots` (done) | `types`, `abilities` | Creates `extractPokemonSource`, which mega_evolution reuses, so it must come before mega. Do not delete `pokemon-rows.go` yet: mega still uses it. |
-| 2 | **mega_evolution** | `pokemon-source.go` from 3 | `types`, `abilities`, `items`, `moves`, `pokemon` | Last. Deletes `pokemon-rows.go`. Needs `itemIDByMega`, `basePokemonIDBySpecies` and `dragonAscentMoveID` extras. |
-| 3 | Final verification + spec update (§4 step 6) | all above | — | Reset DB, full `go run .`, diff all 9 tables, check expected counts (§5.4). |
+| 1 | **mega_evolution** | `pokemon-source.go` (done) | `types`, `abilities`, `items`, `moves`, `pokemon` | Last. `pokemon-rows.go` is already deleted. Needs `itemIDByMega`, `basePokemonIDBySpecies` and `dragonAscentMoveID` extras. |
+| 2 | Final verification + spec update (§4 step 6) | all above | — | Reset DB, full `go run .`, diff all 9 tables, check expected counts (§5.4). |
 
 Run-time DB order (unchanged, `main.go`): type → type_efficacy → ability →
 nature → item → move → pokemon → mega_evolution → pokemon_moves. A refactor
