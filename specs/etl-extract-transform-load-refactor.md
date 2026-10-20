@@ -1,9 +1,9 @@
 # Spec — ETL extract / transform / load refactor (all strategies)
 
-Status: **IN PROGRESS** (2026-10-20). All decisions in §6 are closed.
+Status: **DONE** (2026-10-20). All decisions in §6 are closed.
 Done: §4 steps 1 and 2, and all 9 strategies (ability, type, nature, item,
 type_efficacy, move, pokemon_moves, pokemon, mega_evolution; see §3.1–3.9).
-Remaining: final verification (§4.1 order 1) (see §4.1 for the order and dependencies).
+Final verification passed (§8) (see §4.1 for the order and dependencies).
 
 ## Handoff (read this first)
 
@@ -13,7 +13,7 @@ finished ones are in §3.1–3.5. Nothing is pushed.
 - **Reference implementation:** `scripts/etl/internal/etl/ability-strategy.go`
   and `scripts/etl/internal/entity/ability.go`. Copy their shape for every
   other strategy (§2.1 conventions).
-- **Next step:** final verification (§4.1), full DB reset and diff of all 9 tables.
+- **Next step:** none; the refactor is complete and verified (§8). Nothing is pushed.
 - **Snapshots** (§5) were taken before step 1 and live in the session
   scratchpad (`before/<table>.tsv`, ordered by `pokeapi_id`, junction tables by
   their composite PK). They are not in the repo; retake them from a pre-refactor
@@ -318,7 +318,6 @@ Remaining, in the order they must be executed:
 
 | Order | Strategy | Depends on (code) | Depends on (DB rows at run time) | Notes |
 |---|---|---|---|---|
-| 1 | Final verification + spec update (§4 step 6) | all above | — | Reset DB, full `go run .`, diff all 9 tables, check expected counts (§5.4). |
 
 Run-time DB order (unchanged, `main.go`): type → type_efficacy → ability →
 nature → item → move → pokemon → mega_evolution → pokemon_moves. A refactor
@@ -377,3 +376,12 @@ Verification: `gofmt` / `go vet` clean. The abilities table was snapshotted
 from the old code, then all its columns were blanked in the local DB
 (`slug`, `display_name`, `short_effect`, `effect`) and the ETL was rerun.
 The new output is byte-identical to the snapshot (374 rows).
+
+## 8. Final verification (done)
+
+Schema dropped and recreated from `scripts/init-db-script.sql`, then a full
+`go run .` on the empty DB. Every table was exported ordered by its natural key
+and diffed against the pre-refactor snapshots: all 9 are byte-identical.
+Counts: `types` 21, `type_efficacy` 324, `abilities` 374, `natures` 25,
+`items` 2222, `moves` 937, `pokemon` 1251, `mega_evolution` 90,
+`pokemon_moves` 14,752 (matches §5.4).
