@@ -155,27 +155,20 @@ func (s MoveStrategy) Run() error {
 		min_hits = EXCLUDED.min_hits,
 		max_hits = EXCLUDED.max_hits`
 
-	tx, err := s.DB.Begin()
-	if err != nil {
-		return fmt.Errorf("error starting transaction. %w", err)
-	}
-	defer tx.Rollback()
-
-	for _, move := range moves {
-		_, err := tx.Exec(query,
-			move.PokeapiID, move.Slug, move.DisplayName, move.ShortEffect, move.Effect,
-			move.TypeID, move.Category, move.Power, move.Accuracy, move.PP, move.Priority,
-			move.Target, move.IsContact, move.IsPunch, move.IsBite, move.IsSound,
-			move.IsPulse, move.IsBullet, move.IsSlicing, move.IsWind, move.MinHits, move.MaxHits)
-		if err != nil {
-			return fmt.Errorf("error inserting move %v. %w", move, err)
+	return inTx(s.DB, func(tx *sql.Tx) error {
+		for _, move := range moves {
+			_, err := tx.Exec(query,
+				move.PokeapiID, move.Slug, move.DisplayName, move.ShortEffect, move.Effect,
+				move.TypeID, move.Category, move.Power, move.Accuracy, move.PP, move.Priority,
+				move.Target, move.IsContact, move.IsPunch, move.IsBite, move.IsSound,
+				move.IsPulse, move.IsBullet, move.IsSlicing, move.IsWind, move.MinHits, move.MaxHits)
+			if err != nil {
+				return fmt.Errorf("error inserting move %v. %w", move, err)
+			}
 		}
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("error committing transaction. %w", err)
-	}
 
-	return nil
+		return nil
+	})
 }
 
 type moveCSVRow struct {

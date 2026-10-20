@@ -132,26 +132,19 @@ func (s PokemonStrategy) Run() error {
 		weight = EXCLUDED.weight,
 		fixed_gender = EXCLUDED.fixed_gender`
 
-	tx, err := s.DB.Begin()
-	if err != nil {
-		return fmt.Errorf("error starting transaction. %w", err)
-	}
-	defer tx.Rollback()
-
-	for _, pokemon := range pokemons {
-		_, err := tx.Exec(query,
-			pokemon.PokeapiID, pokemon.Slug, pokemon.DisplayName, pokemon.PrimaryTypeID, pokemon.SecondaryTypeID,
-			pokemon.HP, pokemon.Atk, pokemon.Def, pokemon.SpA, pokemon.SpD, pokemon.Spe,
-			pokemon.Ability1ID, pokemon.Ability2ID, pokemon.HiddenAbilityID, pokemon.Weight, pokemon.FixedGender)
-		if err != nil {
-			return fmt.Errorf("error inserting pokemon %v. %w", pokemon, err)
+	return inTx(s.DB, func(tx *sql.Tx) error {
+		for _, pokemon := range pokemons {
+			_, err := tx.Exec(query,
+				pokemon.PokeapiID, pokemon.Slug, pokemon.DisplayName, pokemon.PrimaryTypeID, pokemon.SecondaryTypeID,
+				pokemon.HP, pokemon.Atk, pokemon.Def, pokemon.SpA, pokemon.SpD, pokemon.Spe,
+				pokemon.Ability1ID, pokemon.Ability2ID, pokemon.HiddenAbilityID, pokemon.Weight, pokemon.FixedGender)
+			if err != nil {
+				return fmt.Errorf("error inserting pokemon %v. %w", pokemon, err)
+			}
 		}
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("error committing transaction. %w", err)
-	}
 
-	return nil
+		return nil
+	})
 }
 
 // megaEvolutionPokemonIDs returns the pokemon ids behind every row that

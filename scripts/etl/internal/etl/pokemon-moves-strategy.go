@@ -64,22 +64,15 @@ func (s PokemonMovesStrategy) Run() error {
 	const query = `INSERT INTO vgcalc.pokemon_moves (pokemon_id, move_id) VALUES ($1, $2)
 	ON CONFLICT (pokemon_id, move_id) DO NOTHING`
 
-	tx, err := s.DB.Begin()
-	if err != nil {
-		return fmt.Errorf("error starting transaction. %w", err)
-	}
-	defer tx.Rollback()
-
-	for _, pokemonMove := range pokemonMoves {
-		if _, err := tx.Exec(query, pokemonMove.PokemonID, pokemonMove.MoveID); err != nil {
-			return fmt.Errorf("error inserting pokemon_move %v. %w", pokemonMove, err)
+	return inTx(s.DB, func(tx *sql.Tx) error {
+		for _, pokemonMove := range pokemonMoves {
+			if _, err := tx.Exec(query, pokemonMove.PokemonID, pokemonMove.MoveID); err != nil {
+				return fmt.Errorf("error inserting pokemon_move %v. %w", pokemonMove, err)
+			}
 		}
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("error committing transaction. %w", err)
-	}
 
-	return nil
+		return nil
+	})
 }
 
 func buildPokemonMoves(rows []pokemonMoveCSVRow, pokemonMap map[int]int, movesMap map[int]int) ([]PokemonMove, error) {

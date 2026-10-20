@@ -61,23 +61,16 @@ func (s NatureStrategy) Run() error {
 		plus_stat = EXCLUDED.plus_stat,
 		minus_stat = EXCLUDED.minus_stat`
 
-	tx, err := s.DB.Begin()
-	if err != nil {
-		return fmt.Errorf("error starting transaction. %w", err)
-	}
-	defer tx.Rollback()
-
-	for _, nature := range natures {
-		_, err := tx.Exec(query, nature.PokeapiID, nature.Slug, nature.DisplayName, nature.PlusStat, nature.MinusStat)
-		if err != nil {
-			return fmt.Errorf("error inserting nature %v. %w", nature, err)
+	return inTx(s.DB, func(tx *sql.Tx) error {
+		for _, nature := range natures {
+			_, err := tx.Exec(query, nature.PokeapiID, nature.Slug, nature.DisplayName, nature.PlusStat, nature.MinusStat)
+			if err != nil {
+				return fmt.Errorf("error inserting nature %v. %w", nature, err)
+			}
 		}
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("error committing transaction. %w", err)
-	}
 
-	return nil
+		return nil
+	})
 }
 
 type natureCSVRow struct {

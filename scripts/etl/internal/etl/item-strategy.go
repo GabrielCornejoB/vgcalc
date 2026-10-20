@@ -60,23 +60,16 @@ func (s ItemStrategy) Run() error {
 		effect = EXCLUDED.effect,
 		fling_power = EXCLUDED.fling_power`
 
-	tx, err := s.DB.Begin()
-	if err != nil {
-		return fmt.Errorf("error starting transaction. %w", err)
-	}
-	defer tx.Rollback()
-
-	for _, item := range items {
-		_, err := tx.Exec(query, item.PokeapiID, item.Slug, item.DisplayName, item.ShortEffect, item.Effect, item.FlingPower)
-		if err != nil {
-			return fmt.Errorf("error inserting item %v. %w", item, err)
+	return inTx(s.DB, func(tx *sql.Tx) error {
+		for _, item := range items {
+			_, err := tx.Exec(query, item.PokeapiID, item.Slug, item.DisplayName, item.ShortEffect, item.Effect, item.FlingPower)
+			if err != nil {
+				return fmt.Errorf("error inserting item %v. %w", item, err)
+			}
 		}
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("error committing transaction. %w", err)
-	}
 
-	return nil
+		return nil
+	})
 }
 
 type itemCSVRow struct {

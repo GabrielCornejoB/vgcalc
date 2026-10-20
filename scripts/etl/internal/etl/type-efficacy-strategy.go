@@ -38,31 +38,24 @@ func (s TypeEfficacyStrategy) Run() error {
 	const query = `INSERT INTO vgcalc.type_efficacy (attack_type_id, target_type_id, multiplier) VALUES ($1, $2, $3)
 	ON CONFLICT (attack_type_id, target_type_id) DO UPDATE SET multiplier = EXCLUDED.multiplier`
 
-	tx, err := s.DB.Begin()
-	if err != nil {
-		return fmt.Errorf("error starting transaction. %w", err)
-	}
-	defer tx.Rollback()
+	return inTx(s.DB, func(tx *sql.Tx) error {
+		for _, typeEfficacy := range typeEfficacies {
+			attackId, attackIdExists := typesMap[typeEfficacy.AttackTypeId]
+			if !attackIdExists {
+				return fmt.Errorf("unknown attack_type_id=%d", typeEfficacy.AttackTypeId)
+			}
+			targetId, targetIdExists := typesMap[typeEfficacy.TargetTypeId]
+			if !targetIdExists {
+				return fmt.Errorf("unknown target_type_id=%d", typeEfficacy.TargetTypeId)
+			}
+			_, err := tx.Exec(query, attackId, targetId, typeEfficacy.Multiplier)
+			if err != nil {
+				return fmt.Errorf("typeEfficacy=%v. %w", typeEfficacy, err)
+			}
+		}
 
-	for _, typeEfficacy := range typeEfficacies {
-		attackId, attackIdExists := typesMap[typeEfficacy.AttackTypeId]
-		if !attackIdExists {
-			return fmt.Errorf("unknown attack_type_id=%d", typeEfficacy.AttackTypeId)
-		}
-		targetId, targetIdExists := typesMap[typeEfficacy.TargetTypeId]
-		if !targetIdExists {
-			return fmt.Errorf("unknown target_type_id=%d", typeEfficacy.TargetTypeId)
-		}
-		_, err := tx.Exec(query, attackId, targetId, typeEfficacy.Multiplier)
-		if err != nil {
-			return fmt.Errorf("typeEfficacy=%v. %w", typeEfficacy, err)
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("error committing transaction. %w", err)
-	}
-	return nil
+		return nil
+	})
 }
 
 type typeEfficacyCSVRow struct {

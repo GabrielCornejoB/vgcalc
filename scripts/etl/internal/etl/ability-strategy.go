@@ -58,23 +58,16 @@ func (s AbilityStrategy) Run() error {
 		short_effect = EXCLUDED.short_effect,
 		effect = EXCLUDED.effect`
 
-	tx, err := s.DB.Begin()
-	if err != nil {
-		return fmt.Errorf("error starting transaction. %w", err)
-	}
-	defer tx.Rollback()
-
-	for _, ability := range abilities {
-		_, err := tx.Exec(query, ability.PokeapiID, ability.Slug, ability.DisplayName, ability.ShortEffect, ability.Effect)
-		if err != nil {
-			return fmt.Errorf("error inserting ability %v. %w", ability, err)
+	return inTx(s.DB, func(tx *sql.Tx) error {
+		for _, ability := range abilities {
+			_, err := tx.Exec(query, ability.PokeapiID, ability.Slug, ability.DisplayName, ability.ShortEffect, ability.Effect)
+			if err != nil {
+				return fmt.Errorf("error inserting ability %v. %w", ability, err)
+			}
 		}
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("error commiting transaction. %w", err)
-	}
 
-	return nil
+		return nil
+	})
 }
 
 type abilityCSVRow struct {

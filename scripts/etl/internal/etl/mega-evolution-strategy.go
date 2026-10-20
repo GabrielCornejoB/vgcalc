@@ -136,26 +136,19 @@ func (s MegaEvolutionStrategy) Run() error {
 		spe = EXCLUDED.spe,
 		weight = EXCLUDED.weight`
 
-	tx, err := s.DB.Begin()
-	if err != nil {
-		return fmt.Errorf("error starting transaction. %w", err)
-	}
-	defer tx.Rollback()
-
-	for _, mega := range megas {
-		_, err := tx.Exec(query,
-			mega.PokeapiID, mega.BasePokemonID, mega.Slug, mega.RequiredItemID, mega.RequiredMoveID,
-			mega.AbilityID, mega.PrimaryTypeID, mega.SecondaryTypeID,
-			mega.HP, mega.Atk, mega.Def, mega.SpA, mega.SpD, mega.Spe, mega.Weight)
-		if err != nil {
-			return fmt.Errorf("error inserting mega %v. %w", mega, err)
+	return inTx(s.DB, func(tx *sql.Tx) error {
+		for _, mega := range megas {
+			_, err := tx.Exec(query,
+				mega.PokeapiID, mega.BasePokemonID, mega.Slug, mega.RequiredItemID, mega.RequiredMoveID,
+				mega.AbilityID, mega.PrimaryTypeID, mega.SecondaryTypeID,
+				mega.HP, mega.Atk, mega.Def, mega.SpA, mega.SpD, mega.Spe, mega.Weight)
+			if err != nil {
+				return fmt.Errorf("error inserting mega %v. %w", mega, err)
+			}
 		}
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("error committing transaction. %w", err)
-	}
 
-	return nil
+		return nil
+	})
 }
 
 type megaFormConditionCSVRow struct {

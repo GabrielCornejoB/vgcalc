@@ -35,24 +35,16 @@ func (s TypeStrategy) Run() error {
 	const query = `INSERT INTO vgcalc.types (pokeapi_id, slug, display_name) VALUES ($1, $2, $3)
 	ON CONFLICT (pokeapi_id) DO UPDATE SET slug = EXCLUDED.slug, display_name = EXCLUDED.display_name`
 
-	tx, err := s.DB.Begin()
-	if err != nil {
-		return fmt.Errorf("error starting transaction. %w", err)
-	}
-	defer tx.Rollback()
-
-	for _, pokemonType := range pokemonTypes {
-		_, err := tx.Exec(query, pokemonType.PokeapiID, pokemonType.Slug, pokemonType.DisplayName)
-		if err != nil {
-			return fmt.Errorf("error inserting pokemonType=%v. %w", pokemonType, err)
+	return inTx(s.DB, func(tx *sql.Tx) error {
+		for _, pokemonType := range pokemonTypes {
+			_, err := tx.Exec(query, pokemonType.PokeapiID, pokemonType.Slug, pokemonType.DisplayName)
+			if err != nil {
+				return fmt.Errorf("error inserting pokemonType=%v. %w", pokemonType, err)
+			}
 		}
-	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("error committing transaction. %w", err)
-	}
-
-	return nil
+		return nil
+	})
 }
 
 type typeCSVRow struct {
