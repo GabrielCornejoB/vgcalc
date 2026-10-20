@@ -30,11 +30,11 @@ func NewNatureStrategy(db *sql.DB, dataDir string) NatureStrategy {
 }
 
 var statIDToSlug = map[int]string{
-	2: "atk",
-	3: "def",
-	4: "spa",
-	5: "spd",
-	6: "spe",
+	statAtk: "atk",
+	statDef: "def",
+	statSpA: "spa",
+	statSpD: "spd",
+	statSpe: "spe",
 }
 
 func (s NatureStrategy) Run() error {

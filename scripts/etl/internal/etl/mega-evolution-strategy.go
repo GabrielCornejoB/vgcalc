@@ -330,17 +330,17 @@ func applyMegaStats(rows []PokemonStatCSVRow, megas []MegaEvolution, megasMap ma
 			continue
 		}
 		switch row.StatID {
-		case 1:
+		case statHP:
 			megas[megaIndex].HP = row.BaseStat
-		case 2:
+		case statAtk:
 			megas[megaIndex].Atk = row.BaseStat
-		case 3:
+		case statDef:
 			megas[megaIndex].Def = row.BaseStat
-		case 4:
+		case statSpA:
 			megas[megaIndex].SpA = row.BaseStat
-		case 5:
+		case statSpD:
 			megas[megaIndex].SpD = row.BaseStat
-		case 6:
+		case statSpe:
 			megas[megaIndex].Spe = row.BaseStat
 		default:
 			return fmt.Errorf("applyMegaStats(): unknown stat_id=%d for mega pokemon_id=%d", row.StatID, row.PokemonID)

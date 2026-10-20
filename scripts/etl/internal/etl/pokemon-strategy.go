@@ -252,17 +252,17 @@ func applyPokemonStats(rows []PokemonStatCSVRow, pokemons []Pokemon, pokemonsMap
 			continue
 		}
 		switch row.StatID {
-		case 1:
+		case statHP:
 			pokemons[pokemonIndex].HP = row.BaseStat
-		case 2:
+		case statAtk:
 			pokemons[pokemonIndex].Atk = row.BaseStat
-		case 3:
+		case statDef:
 			pokemons[pokemonIndex].Def = row.BaseStat
-		case 4:
+		case statSpA:
 			pokemons[pokemonIndex].SpA = row.BaseStat
-		case 5:
+		case statSpD:
 			pokemons[pokemonIndex].SpD = row.BaseStat
-		case 6:
+		case statSpe:
 			pokemons[pokemonIndex].Spe = row.BaseStat
 		default:
 			return fmt.Errorf("applyPokemonStats(): unknown stat_id=%d for pokemon_id=%d", row.StatID, row.PokemonID)
