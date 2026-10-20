@@ -20,6 +20,13 @@ type PokemonMovesStrategy struct {
 	DB                  *sql.DB
 }
 
+type pokemonMoveCSVRow struct {
+	PokemonID      int `csv:"pokemon_id"`
+	VersionGroupID int `csv:"version_group_id"`
+	MoveID         int `csv:"move_id"`
+	MethodID       int `csv:"pokemon_move_method_id"`
+}
+
 type PokemonMove struct {
 	PokemonID int
 	MoveID    int
@@ -33,7 +40,7 @@ func NewPokemonMovesStrategy(db *sql.DB, dataDir string) PokemonMovesStrategy {
 }
 
 func (s PokemonMovesStrategy) Run() error {
-	rows, err := csv.LoadFile[PokemonMoveCSVRow](s.pokemonMovesCSVPath)
+	rows, err := csv.LoadFile[pokemonMoveCSVRow](s.pokemonMovesCSVPath)
 	if err != nil {
 		return fmt.Errorf("PokemonMovesStrategy: %w", err)
 	}
@@ -75,7 +82,7 @@ func (s PokemonMovesStrategy) Run() error {
 	return nil
 }
 
-func buildPokemonMoves(rows []PokemonMoveCSVRow, pokemonMap map[int]int, movesMap map[int]int) ([]PokemonMove, error) {
+func buildPokemonMoves(rows []pokemonMoveCSVRow, pokemonMap map[int]int, movesMap map[int]int) ([]PokemonMove, error) {
 	pokemonMoves := make([]PokemonMove, 0, len(rows))
 	for _, row := range rows {
 		if row.VersionGroupID != championsVersionGroupID || row.MethodID != trainMoveMethodID {

@@ -39,6 +39,11 @@ type Pokemon struct {
 	FixedGender     *string
 }
 
+type pokemonSpeciesCSVRow struct {
+	ID         int `csv:"id"`
+	GenderRate int `csv:"gender_rate"`
+}
+
 func NewPokemonStrategy(db *sql.DB, dataDir string) PokemonStrategy {
 	return PokemonStrategy{
 		DB:                      db,
@@ -63,7 +68,7 @@ func (s PokemonStrategy) Run() error {
 	}
 	megaIDs := megaEvolutionPokemonIDs(formRows)
 
-	speciesRows, err := csv.LoadFile[PokemonSpeciesCSVRow](s.pokemonSpeciesCSVPath)
+	speciesRows, err := csv.LoadFile[pokemonSpeciesCSVRow](s.pokemonSpeciesCSVPath)
 	if err != nil {
 		return fmt.Errorf("PokemonStrategy: %w", err)
 	}
@@ -168,7 +173,7 @@ func megaEvolutionPokemonIDs(rows []PokemonFormCSVRow) map[int]struct{} {
 // speciesFixedGenders keeps only species with a locked gender:
 // gender_rate is the female chance in eighths, so -1 is genderless,
 // 0 is all-male and 8 is all-female; 1-7 are mixed and stay out of the map.
-func speciesFixedGenders(rows []PokemonSpeciesCSVRow) map[int]string {
+func speciesFixedGenders(rows []pokemonSpeciesCSVRow) map[int]string {
 	speciesGenders := make(map[int]string, len(rows))
 	for _, row := range rows {
 		switch row.GenderRate {
