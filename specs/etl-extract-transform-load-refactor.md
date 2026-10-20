@@ -1,8 +1,8 @@
 # Spec — ETL extract / transform / load refactor (all strategies)
 
 Status: **IN PROGRESS** (2026-10-20). All decisions in §6 are closed.
-Done: §4 steps 1 and 2, and 5 of the 9 strategies (ability, type, nature, item,
-type_efficacy; see §3.1–3.5). Remaining: move, pokemon_moves, pokemon,
+Done: §4 steps 1 and 2, and 6 of the 9 strategies (ability, type, nature, item,
+type_efficacy, move; see §3.1–3.6). Remaining: pokemon_moves, pokemon,
 mega_evolution (see §4.1 for the order and dependencies).
 
 ## Handoff (read this first)
@@ -13,7 +13,7 @@ finished ones are in §3.1–3.5. Nothing is pushed.
 - **Reference implementation:** `scripts/etl/internal/etl/ability-strategy.go`
   and `scripts/etl/internal/entity/ability.go`. Copy their shape for every
   other strategy (§2.1 conventions).
-- **Next step:** `move` strategy, then follow the order in §4.1.
+- **Next step:** `pokemon_moves` strategy, then follow the order in §4.1.
 - **Snapshots** (§5) were taken before step 1 and live in the session
   scratchpad (`before/<table>.tsv`, ordered by `pokeapi_id`, junction tables by
   their composite PK). They are not in the repo; retake them from a pre-refactor
@@ -224,6 +224,17 @@ Done in the pilot, see §7. `entity.Ability`, `abilitySource{abilityRows, names,
   `typesMap` (unknown id → same errors as before). The FK lookup is no longer
   inside the `inTx` loop. `parseTypeEfficacies` is gone.
 
+### 3.6 move
+
+- `entity/move.go`: `entity.Move` embeds `entity.MoveFlags`; `Validate()` checks
+  the identity columns, type ≠ 0 and the DB CHECKs (category, power/pp ≥ 0,
+  accuracy 0–100, hits ≥ 1, max ≥ min).
+- `move-strategy.go`: `moveSource{moveRows, typesMap, names, effects, flags,
+  hits}` (English only). `transformMoves` resolves category/target/type
+  (messages prefixed `transformMoves():`). `buildMoves`, `apply*` and
+  `movesPerEffect` are gone. `is_slicing`/`is_wind` are still never set, as before.
+- Verified like 3.1–3.5: `moves` blanked, ETL rerun, 937 rows byte-identical.
+
 ### Verification of 3.1–3.5
 
 `gofmt` / `go vet` clean after each. For each, the table's non-key columns were
@@ -258,16 +269,16 @@ Done (commits on `feature/etl`):
 | 3c | nature | `reshape nature strategy into extract, transform, load` |
 | 3d | item | `reshape item strategy into extract, transform, load` |
 | 3e | type_efficacy | `reshape type efficacy strategy into extract, transform, load` |
+| 3f | move | `reshape move strategy into extract, transform, load` |
 
 Remaining, in the order they must be executed:
 
 | Order | Strategy | Depends on (code) | Depends on (DB rows at run time) | Notes |
 |---|---|---|---|---|
-| 1 | **move** | none | `types` | Largest of the small ones; removes `movesPerEffect`. Resolves `type_id` in transform (D1 b). |
-| 2 | **pokemon_moves** | none | `pokemon`, `moves` | Unknown pokemon → skip, unknown move → error. Its verification needs both tables populated, so run the full ETL first. Can swap with move once the DB is populated, but keeping move first matches the ETL run order in `main.go`. |
-| 3 | **pokemon** (+ shared `pokemon-source.go`) | `entity.Stats/TypeSlots/AbilitySlots` (done) | `types`, `abilities` | Creates `extractPokemonSource`, which mega_evolution reuses, so it must come before mega. Do not delete `pokemon-rows.go` yet: mega still uses it. |
-| 4 | **mega_evolution** | `pokemon-source.go` from 3 | `types`, `abilities`, `items`, `moves`, `pokemon` | Last. Deletes `pokemon-rows.go`. Needs `itemIDByMega`, `basePokemonIDBySpecies` and `dragonAscentMoveID` extras. |
-| 5 | Final verification + spec update (§4 step 6) | all above | — | Reset DB, full `go run .`, diff all 9 tables, check expected counts (§5.4). |
+| 1 | **pokemon_moves** | none | `pokemon`, `moves` | Unknown pokemon → skip, unknown move → error. Its verification needs both tables populated, so run the full ETL first. Can swap with move once the DB is populated, but keeping move first matches the ETL run order in `main.go`. |
+| 2 | **pokemon** (+ shared `pokemon-source.go`) | `entity.Stats/TypeSlots/AbilitySlots` (done) | `types`, `abilities` | Creates `extractPokemonSource`, which mega_evolution reuses, so it must come before mega. Do not delete `pokemon-rows.go` yet: mega still uses it. |
+| 3 | **mega_evolution** | `pokemon-source.go` from 3 | `types`, `abilities`, `items`, `moves`, `pokemon` | Last. Deletes `pokemon-rows.go`. Needs `itemIDByMega`, `basePokemonIDBySpecies` and `dragonAscentMoveID` extras. |
+| 4 | Final verification + spec update (§4 step 6) | all above | — | Reset DB, full `go run .`, diff all 9 tables, check expected counts (§5.4). |
 
 Run-time DB order (unchanged, `main.go`): type → type_efficacy → ability →
 nature → item → move → pokemon → mega_evolution → pokemon_moves. A refactor

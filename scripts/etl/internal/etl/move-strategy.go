@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"vgcalc/etl/internal/csv"
+	"vgcalc/etl/internal/entity"
 )
 
 type MoveStrategy struct {
@@ -14,32 +15,6 @@ type MoveStrategy struct {
 	moveFlagMapCSVPath     string
 	moveMetaCSVPath        string
 	DB                     *sql.DB
-}
-
-type Move struct {
-	PokeapiID   int
-	Slug        string
-	DisplayName string
-	EffectID    int
-	ShortEffect string
-	Effect      string
-	TypeID      int
-	Category    string
-	Power       int
-	Accuracy    int
-	PP          int
-	Priority    int
-	Target      string
-	IsContact   bool
-	IsPunch     bool
-	IsBite      bool
-	IsSound     bool
-	IsPulse     bool
-	IsBullet    bool
-	IsSlicing   bool
-	IsWind      bool
-	MinHits     *int
-	MaxHits     *int
 }
 
 func NewMoveStrategy(db *sql.DB, dataDir string) MoveStrategy {
@@ -79,53 +54,19 @@ var moveTargetIDToSlug = map[int]string{
 }
 
 func (s MoveStrategy) Run() error {
-	rows, err := csv.ReadFile[moveCSVRow](s.movesCSVPath)
+	src, err := s.extract()
+	if err != nil {
+		return err
+	}
+	moves, err := transformMoves(src)
 	if err != nil {
 		return err
 	}
 
-	typesMap, err := queryPokeapiIDMap(s.DB, vgcalcTypes)
-	if err != nil {
-		return err
-	}
-
-	moves, movesMap, movesPerEffect, err := buildMoves(rows, typesMap)
-	if err != nil {
-		return err
-	}
-
-	nameRows, err := csv.ReadFile[moveNameCSVRow](s.moveNamesCSVPath)
-	if err != nil {
-		return err
-	}
-
-	applyMoveNames(nameRows, moves, movesMap)
-
-	effectRows, err := csv.ReadFile[moveEffectCSVRow](s.moveEffectProseCSVPath)
-	if err != nil {
-		return err
-	}
-
-	applyMoveEffects(effectRows, moves, movesPerEffect)
-
-	flagRows, err := csv.ReadFile[moveFlagMapCSVRow](s.moveFlagMapCSVPath)
-	if err != nil {
-		return err
-	}
-
-	applyMoveFlags(flagRows, moves, movesMap)
-
-	metaRows, err := csv.ReadFile[moveMetaCSVRow](s.moveMetaCSVPath)
-	if err != nil {
-		return err
-	}
-
-	applyMoveMeta(metaRows, moves, movesMap)
-
-	return upsertMoves(s.DB, moves)
+	return loadMoves(s.DB, moves)
 }
 
-func upsertMoves(db *sql.DB, moves []Move) error {
+func loadMoves(db *sql.DB, moves []entity.Move) error {
 	const query = `INSERT INTO vgcalc.moves (
 		pokeapi_id, slug, display_name, short_effect, effect,
 		type_id, category, power, accuracy, pp, priority, target,
@@ -212,99 +153,121 @@ type moveMetaCSVRow struct {
 	MaxHits *int `csv:"max_hits,omitempty"`
 }
 
-func buildMoves(rows []moveCSVRow, typesMap map[int]int) ([]Move, map[int]int, map[int][]int, error) {
-	moves := make([]Move, 0, len(rows))
-	movesMap := make(map[int]int, len(rows))
-	movesPerEffect := make(map[int][]int)
-	for _, row := range rows {
+type moveSource struct {
+	moveRows []moveCSVRow
+	typesMap map[int]int
+	names    map[int]string
+	effects  map[int]moveEffectCSVRow
+	flags    map[int]entity.MoveFlags
+	hits     map[int]moveMetaCSVRow
+}
+
+func (s MoveStrategy) extract() (moveSource, error) {
+	var src moveSource
+	var err error
+
+	if src.moveRows, err = csv.ReadFile[moveCSVRow](s.movesCSVPath); err != nil {
+		return src, err
+	}
+	if src.typesMap, err = queryPokeapiIDMap(s.DB, vgcalcTypes); err != nil {
+		return src, err
+	}
+	nameRows, err := csv.ReadFile[moveNameCSVRow](s.moveNamesCSVPath)
+	if err != nil {
+		return src, err
+	}
+	effectRows, err := csv.ReadFile[moveEffectCSVRow](s.moveEffectProseCSVPath)
+	if err != nil {
+		return src, err
+	}
+	flagRows, err := csv.ReadFile[moveFlagMapCSVRow](s.moveFlagMapCSVPath)
+	if err != nil {
+		return src, err
+	}
+	metaRows, err := csv.ReadFile[moveMetaCSVRow](s.moveMetaCSVPath)
+	if err != nil {
+		return src, err
+	}
+
+	src.names = make(map[int]string, len(nameRows))
+	for _, row := range nameRows {
+		if row.LanguageID == pokeapiLanguageID {
+			src.names[row.MoveID] = row.Name
+		}
+	}
+	src.effects = make(map[int]moveEffectCSVRow, len(effectRows))
+	for _, row := range effectRows {
+		if row.LanguageID == pokeapiLanguageID {
+			src.effects[row.EffectID] = row
+		}
+	}
+	src.flags = make(map[int]entity.MoveFlags, len(flagRows))
+	for _, row := range flagRows {
+		flags := src.flags[row.MoveID]
+		switch row.FlagID {
+		case 1:
+			flags.IsContact = true
+		case 8:
+			flags.IsPunch = true
+		case 16:
+			flags.IsBite = true
+		case 9:
+			flags.IsSound = true
+		case 17:
+			flags.IsPulse = true
+		case 18:
+			flags.IsBullet = true
+		}
+		src.flags[row.MoveID] = flags
+	}
+	src.hits = make(map[int]moveMetaCSVRow, len(metaRows))
+	for _, row := range metaRows {
+		src.hits[row.MoveID] = row
+	}
+
+	return src, nil
+}
+
+func transformMoves(src moveSource) ([]entity.Move, error) {
+	moves := make([]entity.Move, 0, len(src.moveRows))
+	for _, row := range src.moveRows {
 		category, ok := damageClassIDToSlug[row.DamageClassID]
 		if !ok {
-			return nil, nil, nil, fmt.Errorf("buildMoves(): unknown damage_class_id=%d", row.DamageClassID)
+			return nil, fmt.Errorf("transformMoves(): unknown damage_class_id=%d", row.DamageClassID)
 		}
 		target, ok := moveTargetIDToSlug[row.TargetID]
 		if !ok {
-			return nil, nil, nil, fmt.Errorf("buildMoves(): unknown target_id=%d", row.TargetID)
+			return nil, fmt.Errorf("transformMoves(): unknown target_id=%d", row.TargetID)
 		}
-		typeID, ok := typesMap[row.TypeID]
+		typeID, ok := src.typesMap[row.TypeID]
 		if !ok {
-			return nil, nil, nil, fmt.Errorf("buildMoves(): unknown type_id=%d", row.TypeID)
+			return nil, fmt.Errorf("transformMoves(): unknown type_id=%d", row.TypeID)
 		}
-		moves = append(moves, Move{
-			PokeapiID: row.ID,
-			Slug:      row.Identifier,
-			EffectID:  row.EffectID,
-			TypeID:    typeID,
-			Power:     row.Power,
-			PP:        row.PP,
-			Accuracy:  row.Accuracy,
-			Priority:  row.Priority,
-			Target:    target,
-			Category:  category,
-		})
-		movesMap[row.ID] = len(moves) - 1
-		if row.EffectID != 0 {
-			movesPerEffect[row.EffectID] = append(movesPerEffect[row.EffectID], len(moves)-1)
+
+		effect := src.effects[row.EffectID]
+		hits := src.hits[row.ID]
+		move := entity.Move{
+			PokeapiID:   row.ID,
+			Slug:        row.Identifier,
+			DisplayName: src.names[row.ID],
+			ShortEffect: effect.ShortEffect,
+			Effect:      effect.Effect,
+			TypeID:      typeID,
+			Category:    category,
+			Power:       row.Power,
+			Accuracy:    row.Accuracy,
+			PP:          row.PP,
+			Priority:    row.Priority,
+			Target:      target,
+			MoveFlags:   src.flags[row.ID],
+			MinHits:     hits.MinHits,
+			MaxHits:     hits.MaxHits,
 		}
+		if err := move.Validate(); err != nil {
+			return nil, fmt.Errorf("transformMoves(): %w", err)
+		}
+		moves = append(moves, move)
 	}
 
-	return moves, movesMap, movesPerEffect, nil
-}
-
-func applyMoveNames(rows []moveNameCSVRow, moves []Move, movesMap map[int]int) {
-	for _, row := range rows {
-		if row.LanguageID != pokeapiLanguageID {
-			continue
-		}
-		moveIndex, ok := movesMap[row.MoveID]
-		if !ok {
-			continue
-		}
-		moves[moveIndex].DisplayName = row.Name
-	}
-}
-
-func applyMoveEffects(rows []moveEffectCSVRow, moves []Move, movesPerEffect map[int][]int) {
-	for _, row := range rows {
-		if row.LanguageID != pokeapiLanguageID {
-			continue
-		}
-		for _, moveIndex := range movesPerEffect[row.EffectID] {
-			moves[moveIndex].Effect = row.Effect
-			moves[moveIndex].ShortEffect = row.ShortEffect
-		}
-	}
-}
-
-func applyMoveFlags(rows []moveFlagMapCSVRow, moves []Move, movesMap map[int]int) {
-	for _, row := range rows {
-		moveIndex, ok := movesMap[row.MoveID]
-		if !ok {
-			continue
-		}
-		switch row.FlagID {
-		case 1:
-			moves[moveIndex].IsContact = true
-		case 8:
-			moves[moveIndex].IsPunch = true
-		case 16:
-			moves[moveIndex].IsBite = true
-		case 9:
-			moves[moveIndex].IsSound = true
-		case 17:
-			moves[moveIndex].IsPulse = true
-		case 18:
-			moves[moveIndex].IsBullet = true
-		}
-	}
-}
-
-func applyMoveMeta(rows []moveMetaCSVRow, moves []Move, movesMap map[int]int) {
-	for _, row := range rows {
-		moveIndex, ok := movesMap[row.MoveID]
-		if !ok {
-			continue
-		}
-		moves[moveIndex].MinHits = row.MinHits
-		moves[moveIndex].MaxHits = row.MaxHits
-	}
+	return moves, nil
 }
