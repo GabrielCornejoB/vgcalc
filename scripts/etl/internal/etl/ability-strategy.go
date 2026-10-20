@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"vgcalc/etl/internal/csv"
+	"vgcalc/etl/internal/entity"
 )
 
 type AbilityStrategy struct {
@@ -12,14 +13,6 @@ type AbilityStrategy struct {
 	abilityNamesCSVPath string
 	abilityProseCSVPath string
 	DB                  *sql.DB
-}
-
-type Ability struct {
-	PokeapiID   int
-	Slug        string
-	DisplayName string
-	ShortEffect string
-	Effect      string
 }
 
 func NewAbilityStrategy(db *sql.DB, dataDir string) AbilityStrategy {
@@ -32,42 +25,16 @@ func NewAbilityStrategy(db *sql.DB, dataDir string) AbilityStrategy {
 }
 
 func (s AbilityStrategy) Run() error {
-	abilityRows, err := csv.LoadFile[abilityCSVRow](s.abilitiesCSVPath)
+	src, err := s.extract()
 	if err != nil {
 		return err
 	}
-	abilities, abilitiesMap := buildAbilities(abilityRows)
-
-	nameRows, err := csv.LoadFile[abilityNameCSVRow](s.abilityNamesCSVPath)
+	abilities, err := transformAbilities(src)
 	if err != nil {
 		return err
 	}
-	applyAbilityNames(nameRows, abilities, abilitiesMap)
 
-	proseRows, err := csv.LoadFile[abilityProseCSVRow](s.abilityProseCSVPath)
-	if err != nil {
-		return err
-	}
-	applyAbilityEffects(proseRows, abilities, abilitiesMap)
-
-	const query = `INSERT INTO vgcalc.abilities (pokeapi_id, slug, display_name, short_effect, effect)
-	VALUES ($1, $2, $3, $4, $5)
-	ON CONFLICT (pokeapi_id) DO UPDATE SET
-		slug = EXCLUDED.slug,
-		display_name = EXCLUDED.display_name,
-		short_effect = EXCLUDED.short_effect,
-		effect = EXCLUDED.effect`
-
-	return inTx(s.DB, func(tx *sql.Tx) error {
-		for _, ability := range abilities {
-			_, err := tx.Exec(query, ability.PokeapiID, ability.Slug, ability.DisplayName, ability.ShortEffect, ability.Effect)
-			if err != nil {
-				return fmt.Errorf("error inserting ability %v. %w", ability, err)
-			}
-		}
-
-		return nil
-	})
+	return loadAbilities(s.DB, abilities)
 }
 
 type abilityCSVRow struct {
@@ -88,42 +55,83 @@ type abilityProseCSVRow struct {
 	Effect          string `csv:"effect"`
 }
 
-func buildAbilities(rows []abilityCSVRow) ([]Ability, map[int]int) {
-	abilities := make([]Ability, 0, len(rows))
-	abilitiesMap := make(map[int]int, len(rows))
-	for i, row := range rows {
-		abilities = append(abilities, Ability{PokeapiID: row.ID, Slug: row.Identifier})
-		abilitiesMap[row.ID] = i
-	}
-
-	return abilities, abilitiesMap
+type abilitySource struct {
+	abilityRows []abilityCSVRow
+	names       map[int]string
+	prose       map[int]abilityProseCSVRow
 }
 
-func applyAbilityNames(rows []abilityNameCSVRow, abilities []Ability, abilitiesMap map[int]int) {
-	for _, row := range rows {
-		// If language id is != 9 (english), then skip the record
-		if row.LocalLanguageID != pokeapiLanguageID {
-			continue
-		}
-		abilityIndex, exists := abilitiesMap[row.AbilityID]
-		if !exists {
-			continue
-		}
-		abilities[abilityIndex].DisplayName = row.Name
+func (s AbilityStrategy) extract() (abilitySource, error) {
+	var src abilitySource
+	var err error
+
+	if src.abilityRows, err = csv.LoadFile[abilityCSVRow](s.abilitiesCSVPath); err != nil {
+		return src, err
 	}
+	nameRows, err := csv.LoadFile[abilityNameCSVRow](s.abilityNamesCSVPath)
+	if err != nil {
+		return src, err
+	}
+	proseRows, err := csv.LoadFile[abilityProseCSVRow](s.abilityProseCSVPath)
+	if err != nil {
+		return src, err
+	}
+
+	src.names = make(map[int]string, len(nameRows))
+	for _, row := range nameRows {
+		if row.LocalLanguageID == pokeapiLanguageID {
+			src.names[row.AbilityID] = row.Name
+		}
+	}
+	src.prose = make(map[int]abilityProseCSVRow, len(proseRows))
+	for _, row := range proseRows {
+		if row.LocalLanguageID == pokeapiLanguageID {
+			src.prose[row.AbilityID] = row
+		}
+	}
+
+	return src, nil
 }
 
-func applyAbilityEffects(rows []abilityProseCSVRow, abilities []Ability, abilitiesMap map[int]int) {
-	for _, row := range rows {
-		// If language id is != 9 (english), then skip the record
-		if row.LocalLanguageID != pokeapiLanguageID {
-			continue
+func transformAbilities(src abilitySource) ([]entity.Ability, error) {
+	abilities := make([]entity.Ability, 0, len(src.abilityRows))
+	for _, row := range src.abilityRows {
+		prose := src.prose[row.ID]
+		ability := entity.Ability{
+			PokeapiID:   row.ID,
+			Slug:        row.Identifier,
+			DisplayName: src.names[row.ID],
+			ShortEffect: prose.ShortEffect,
+			Effect:      prose.Effect,
 		}
-		abilityIndex, exists := abilitiesMap[row.AbilityID]
-		if !exists {
-			continue
+		if err := ability.Validate(); err != nil {
+			return nil, err
 		}
-		abilities[abilityIndex].ShortEffect = row.ShortEffect
-		abilities[abilityIndex].Effect = row.Effect
+		abilities = append(abilities, ability)
 	}
+
+	return abilities, nil
+}
+
+func loadAbilities(db *sql.DB, abilities []entity.Ability) error {
+	const query = `INSERT INTO vgcalc.abilities (pokeapi_id, slug, display_name, short_effect, effect)
+	VALUES ($1, $2, $3, $4, $5)
+	ON CONFLICT (pokeapi_id) DO UPDATE SET
+		slug = EXCLUDED.slug,
+		display_name = EXCLUDED.display_name,
+		short_effect = EXCLUDED.short_effect,
+		effect = EXCLUDED.effect`
+
+	return inTx(db, func(tx *sql.Tx) error {
+		for _, ability := range abilities {
+			_, err := tx.Exec(query,
+				ability.PokeapiID, ability.Slug, ability.DisplayName,
+				ability.ShortEffect, ability.Effect)
+			if err != nil {
+				return fmt.Errorf("error inserting ability %v. %w", ability, err)
+			}
+		}
+
+		return nil
+	})
 }
