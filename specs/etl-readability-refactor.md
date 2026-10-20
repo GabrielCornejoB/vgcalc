@@ -1,7 +1,13 @@
 # Spec — ETL readability refactor (pokemon_moves first, then all strategies)
 
-Status: **draft, awaiting approval**. Date: 2026-10-18.
-Nothing here is implemented. Phase 1 and Phase 2 are approved separately.
+Status: **Phase 1, S1, S2 and S3 implemented** (2026-10-18/20). S4–S10 pending
+approval. S6 revised: row structs used by a single strategy stay in that
+strategy's file; `pokemon-rows.go` holds only shared ones. S10 dropped (the
+golang-guidelines skill has no file naming rule).
+Phase 1 decisions taken: D1 unknown move = error; D2 no skip logging (no
+other strategy logs); D3 dedupe removed (`ON CONFLICT DO NOTHING` covers it);
+D4 stale rows revisited later. S1 done: the three strategies are registered
+in `main.go` and a full run seeded the local DB.
 
 Files in scope: `scripts/etl/main.go` and every file in
 `scripts/etl/internal/etl/`.
@@ -187,4 +193,4 @@ it says so.
 4. S4, S5, S6, S7 — one commit per item.
 5. Verify after each commit: `gofmt -l .`, `go vet ./...`. Run against the DB
    only after step 4, comparing row counts with expected values (`mega_evolution` 90,
-   `pokemon` 1252).
+   `pokemon` 1251).

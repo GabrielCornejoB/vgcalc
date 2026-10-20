@@ -196,7 +196,12 @@ Dropped: contest fields, `effect_chance` / ailment numbers (code later), `genera
 
 PK = (`pokemon_id`, `move_id`). Seed = Champions slice (`version_group_id 32`,
 all `method train`) collapsed: `level/order/method` constant, dropped.
-Megas inherit base's list — no `mega_moves` table.
+Megas inherit base's list — no `mega_moves` table. The ETL therefore skips
+rows whose `pokemon_id` is not in `pokemon` (mega/primal ids live in
+`mega_evolution`) and fails on an unknown `move_id` (all moves are seeded).
+Local seed (2026-10-18): 14,752 rows over 243 `pokemon` rows; the other
+~1,000 `pokemon` rows have no moves because they are not in the Champions
+slice.
 No `pokeapi_id` here — source join has no single ID; ETL resolves sides via
 `pokemon.pokeapi_id` + `moves.pokeapi_id`, then stores surrogate FKs.
 
@@ -213,13 +218,31 @@ global-mutable for moves (see above).
 | Table | Columns | PokeAPI source |
 |---|---|---|
 | `regulations` | `id` SERIAL PK (ETL omits it), `slug` UK (e.g. `reg-m-a`, `reg-m-c`), `display_name`, `is_current` bool (exactly one TRUE) | Manual — mirrors `ps` `champions` vs `championsregma` mods. No `pokeapi_id` (no source ID). |
-| `regulation_pokemon` | `regulation_id` FK + `pokemon_id` FK, PK both | Manual curation; starting inputs: `ps` formats-data tiers + `pokemon_moves` VG32 distinct `pokemon_id`s. No `pokeapi_id` (join of manual + surrogate FKs). |
+| `regulation_pokemon` | `regulation_id` FK + `pokemon_id` FK, PK both | Manual curation; starting inputs: `ps` formats-data tiers + PokeAPI pokedex `36 champions` (see below). `pokemon_moves` VG32 distinct `pokemon_id`s is a weaker proxy. No `pokeapi_id` (join of manual + surrogate FKs). |
 
 Runtime queries filter `regulation_pokemon WHERE regulation_id = (current)`.
 M-A→M-C→M-A restores the set with no re-curation. Diffs (`in M-A not M-C`)
 are plain set queries. Provenance: mirrors `ps` `champions` vs `championsregma`
 mods (separate pools, e.g. `bulbasaur Illegal` in regma) and PokeAPI
 version-group scoping, restricted to pokémon level by decision.
+
+### What PokeAPI knows about the Champions roster
+
+PokeAPI has **no regulation concept** (no M-A / M-B / legality data). It only
+marks the game's roster:
+
+* `pokedexes` id `36`, `champions` (`is_main_series=0`, no region), linked to
+  `version_groups` id `32` via `pokedex_version_groups`.
+* `pokemon_dex_numbers` rows with `pokedex_id=36`: **231 species** (the number
+  is the national dex number, not a regional order). Species level only: forms
+  (alolan, mega, …) are not listed.
+* `pokemon_moves` `version_group_id=32` covers **208 of those species** and no
+  species outside the dex. The 23 dex species with no move rows (species ids
+  40, 53, 83, 122, 317, 373, 673, 768, 812, 815, 818, 828, 849, 853, 863, 865,
+  871, 876, 923, 930, 931, 943, 998 — e.g. wigglytuff, persian, salamence)
+  look like incomplete source data, not intentional exclusions.
+* Nothing separates "currently active" from "released" (the dex is the whole
+  roster); per-regulation membership stays manual.
 
 ## Table: `natures` (master, inline enum stats)
 
@@ -282,7 +305,10 @@ for now, listed so nothing is lost:
 6. **Move-level bans unrepresentable (by decision).** See `pokemon_moves` —
    deleting a row is global across regs.
 7. **Seed scope — decided: Champions-legal `pokemon` only.** First migration
-   imports only Champions-legal pokémon, not the full dex. `moves`: VG32
+   imports only Champions-legal pokémon, not the full dex. *Currently not the
+   case:* `PokemonStrategy` seeds every non-mega/primal row (1,251) and
+   legality is meant to come from `regulation_pokemon`; revisit whether to
+   filter the seed by pokedex `36` instead. `moves`: VG32
    collapse agreed. `items`: ~60 competitive rows agreed.
 8. **Dropped knowingly.** Sprites/icons (UI later); field/weather/terrain
    (battle runtime, not data tables); `fling_effect_id`, `effect_chance` /

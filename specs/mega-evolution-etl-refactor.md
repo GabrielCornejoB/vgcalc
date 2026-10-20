@@ -146,7 +146,9 @@ mega-evolution-strategy.go:
 
 - `vgcalc.mega_evolution`: **90 rows** = 87 stone megas (96 stone-triggered
   minus 9 ability-less) + rayquaza-mega + 2 primals.
-- `vgcalc.pokemon`: **1252 rows** (1254 minus the 2 primal rows).
+- `vgcalc.pokemon`: **1251 rows** = 1351 `pokemon.csv` rows minus 97 megas,
+  2 primals and `eternatus-eternamax` (weight 0). Verified against the local
+  DB on 2026-10-18 (an earlier draft said 1252 and missed the eternamax row).
 - `vgcalc.pokemon_moves`: no code change. Primal/rayquaza/mega pokemon ids
   no longer resolve in `vgcalc.pokemon`, so their VG32 rows skip —
   transformations inherit the base mon's list, per the model.
