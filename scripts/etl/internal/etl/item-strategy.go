@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"vgcalc/etl/internal/csv"
+	"vgcalc/etl/internal/entity"
 )
 
 type ItemStrategy struct {
@@ -12,15 +13,6 @@ type ItemStrategy struct {
 	itemNamesCSVPath string
 	itemProseCSVPath string
 	DB               *sql.DB
-}
-
-type Item struct {
-	PokeapiID   int
-	Slug        string
-	DisplayName string
-	ShortEffect string
-	Effect      string
-	FlingPower  int
 }
 
 func NewItemStrategy(db *sql.DB, dataDir string) ItemStrategy {
@@ -33,43 +25,16 @@ func NewItemStrategy(db *sql.DB, dataDir string) ItemStrategy {
 }
 
 func (s ItemStrategy) Run() error {
-	itemRows, err := csv.ReadFile[itemCSVRow](s.itemsCSVPath)
+	src, err := s.extract()
 	if err != nil {
 		return err
 	}
-	items, itemsMap := buildItems(itemRows)
-
-	nameRows, err := csv.ReadFile[itemNameCSVRow](s.itemNamesCSVPath)
+	items, err := transformItems(src)
 	if err != nil {
 		return err
 	}
-	applyItemNames(nameRows, items, itemsMap)
 
-	proseRows, err := csv.ReadFile[itemProseCSVRow](s.itemProseCSVPath)
-	if err != nil {
-		return err
-	}
-	applyItemEffects(proseRows, items, itemsMap)
-
-	const query = `INSERT INTO vgcalc.items (pokeapi_id, slug, display_name, short_effect, effect, fling_power)
-	VALUES ($1, $2, $3, $4, $5, $6)
-	ON CONFLICT (pokeapi_id) DO UPDATE SET
-		slug = EXCLUDED.slug,
-		display_name = EXCLUDED.display_name,
-		short_effect = EXCLUDED.short_effect,
-		effect = EXCLUDED.effect,
-		fling_power = EXCLUDED.fling_power`
-
-	return inTx(s.DB, func(tx *sql.Tx) error {
-		for _, item := range items {
-			_, err := tx.Exec(query, item.PokeapiID, item.Slug, item.DisplayName, item.ShortEffect, item.Effect, item.FlingPower)
-			if err != nil {
-				return fmt.Errorf("error inserting item %v. %w", item, err)
-			}
-		}
-
-		return nil
-	})
+	return loadItems(s.DB, items)
 }
 
 type itemCSVRow struct {
@@ -91,11 +56,48 @@ type itemProseCSVRow struct {
 	Effect          string `csv:"effect"`
 }
 
-func buildItems(rows []itemCSVRow) ([]Item, map[int]int) {
-	items := make([]Item, 0, len(rows))
-	itemsMap := make(map[int]int, len(rows))
-	seenSlugs := make(map[string]struct{})
-	for _, row := range rows {
+type itemSource struct {
+	itemRows []itemCSVRow
+	names    map[int]string
+	prose    map[int]itemProseCSVRow
+}
+
+func (s ItemStrategy) extract() (itemSource, error) {
+	var src itemSource
+	var err error
+
+	if src.itemRows, err = csv.ReadFile[itemCSVRow](s.itemsCSVPath); err != nil {
+		return src, err
+	}
+	nameRows, err := csv.ReadFile[itemNameCSVRow](s.itemNamesCSVPath)
+	if err != nil {
+		return src, err
+	}
+	proseRows, err := csv.ReadFile[itemProseCSVRow](s.itemProseCSVPath)
+	if err != nil {
+		return src, err
+	}
+
+	src.names = make(map[int]string, len(nameRows))
+	for _, row := range nameRows {
+		if row.LocalLanguageID == pokeapiLanguageID {
+			src.names[row.ItemID] = row.Name
+		}
+	}
+	src.prose = make(map[int]itemProseCSVRow, len(proseRows))
+	for _, row := range proseRows {
+		if row.LocalLanguageID == pokeapiLanguageID {
+			src.prose[row.ItemID] = row
+		}
+	}
+
+	return src, nil
+}
+
+func transformItems(src itemSource) ([]entity.Item, error) {
+	items := make([]entity.Item, 0, len(src.itemRows))
+	seenSlugs := make(map[string]struct{}, len(src.itemRows))
+	for _, row := range src.itemRows {
 		// PokeAPI contains duplicate identifiers (e.g. roseli-berry as both
 		// 723 and 2279 — same data in our columns, newer row has no EN text).
 		// Keep the first occurrence (lowest pokeapi_id), skip the rest.
@@ -103,43 +105,46 @@ func buildItems(rows []itemCSVRow) ([]Item, map[int]int) {
 		if _, seen := seenSlugs[row.Identifier]; seen {
 			continue
 		}
-		items = append(items, Item{
-			PokeapiID:  row.ID,
-			Slug:       row.Identifier,
-			FlingPower: row.FlingPower,
-		})
-		itemsMap[row.ID] = len(items) - 1
 		seenSlugs[row.Identifier] = struct{}{}
+
+		prose := src.prose[row.ID]
+		item := entity.Item{
+			PokeapiID:   row.ID,
+			Slug:        row.Identifier,
+			DisplayName: src.names[row.ID],
+			ShortEffect: prose.ShortEffect,
+			Effect:      prose.Effect,
+			FlingPower:  row.FlingPower,
+		}
+		if err := item.Validate(); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
 	}
 
-	return items, itemsMap
+	return items, nil
 }
 
-func applyItemNames(rows []itemNameCSVRow, items []Item, itemsMap map[int]int) {
-	for _, row := range rows {
-		// If language id is != 9 (english), then skip the record
-		if row.LocalLanguageID != pokeapiLanguageID {
-			continue
-		}
-		itemIndex, exists := itemsMap[row.ItemID]
-		if !exists {
-			continue
-		}
-		items[itemIndex].DisplayName = row.Name
-	}
-}
+func loadItems(db *sql.DB, items []entity.Item) error {
+	const query = `INSERT INTO vgcalc.items (pokeapi_id, slug, display_name, short_effect, effect, fling_power)
+	VALUES ($1, $2, $3, $4, $5, $6)
+	ON CONFLICT (pokeapi_id) DO UPDATE SET
+		slug = EXCLUDED.slug,
+		display_name = EXCLUDED.display_name,
+		short_effect = EXCLUDED.short_effect,
+		effect = EXCLUDED.effect,
+		fling_power = EXCLUDED.fling_power`
 
-func applyItemEffects(rows []itemProseCSVRow, items []Item, itemsMap map[int]int) {
-	for _, row := range rows {
-		// If language id is != 9 (english), then skip the record
-		if row.LocalLanguageID != pokeapiLanguageID {
-			continue
+	return inTx(db, func(tx *sql.Tx) error {
+		for _, item := range items {
+			_, err := tx.Exec(query,
+				item.PokeapiID, item.Slug, item.DisplayName,
+				item.ShortEffect, item.Effect, item.FlingPower)
+			if err != nil {
+				return fmt.Errorf("error inserting item %v. %w", item, err)
+			}
 		}
-		itemIndex, exists := itemsMap[row.ItemID]
-		if !exists {
-			continue
-		}
-		items[itemIndex].ShortEffect = row.ShortEffect
-		items[itemIndex].Effect = row.Effect
-	}
+
+		return nil
+	})
 }
