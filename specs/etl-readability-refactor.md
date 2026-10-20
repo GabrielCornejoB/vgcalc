@@ -1,13 +1,49 @@
 # Spec — ETL readability refactor (pokemon_moves first, then all strategies)
 
-Status: **Phase 1, S1, S2 and S3 implemented** (2026-10-18/20). S4–S10 pending
-approval. S6 revised: row structs used by a single strategy stay in that
-strategy's file; `pokemon-rows.go` holds only shared ones. S10 dropped (the
-golang-guidelines skill has no file naming rule).
-Phase 1 decisions taken: D1 unknown move = error; D2 no skip logging (no
-other strategy logs); D3 dedupe removed (`ON CONFLICT DO NOTHING` covers it);
-D4 stale rows revisited later. S1 done: the three strategies are registered
-in `main.go` and a full run seeded the local DB.
+Status: **Phase 1, S1, S2, S3, S4 implemented** (2026-10-18/20). S5, S7, S8, S9
+pending approval. S6 revised: row structs used by a single strategy stay in
+that strategy's file; `pokemon-rows.go` holds only shared ones. S10 dropped
+(the golang-guidelines skill has no file naming rule).
+
+## Handoff (read this first)
+
+Branch `feature/etl`. Last pushed commit is `3ca058c`; later commits are local
+until pushed. All 9 strategies are registered in `scripts/etl/main.go`.
+
+**Done (one commit each)**
+- Phase 1: `pokemon-moves-strategy.go` simplified (pure `buildPokemonMoves`,
+  unknown move = error, no skip counters/dedupe).
+- S1: pokemon, mega evolution, pokemon moves registered in `main.go`.
+- S2: strategies return bare `err`; `main.go` prints `%T: err` once.
+- S3: `tx.go` `inTx(db, fn)` replaces Begin/Rollback/Commit in all strategies.
+- S4: `upsertMoves` / `upsertPokemon` / `upsertMegaEvolutions` extracted;
+  `loadInputs()` + `pokemonInputs` / `megaEvolutionInputs` structs for the
+  pokemon and mega strategies. `Run()` is now 22 lines (pokemon) and 29
+  (mega); move is 46 (left as is: it is a linear build/apply pipeline).
+- Row structs: single-use ones live in their own strategy file.
+
+**How to verify a change** (no automated tests exist)
+1. `cd scripts/etl && gofmt -l . && go vet ./...`
+2. `go run .` (needs `scripts/etl/.env` with DB_* and `DATA_DIR`, and the
+   docker DB from `apps/docker-compose.yaml` running as `apps-db-1`).
+3. Expected counts: `pokemon` 1251, `mega_evolution` 90, `pokemon_moves`
+   14,752, `moves` 937. A pure refactor must not change them.
+
+**Remaining work, in suggested order**
+- S5 stat-id constants (option A): named ids for the identical 1–6 switch in
+  `applyPokemonStats` / `applyMegaStats`; put in `constants.go`.
+- S7 naming of id maps / `slot1s`: only if done across all strategies.
+- S8 (`isEnglish` helper) and S9 (fold mega slot-1 ability into build):
+  recommended to skip.
+- Not part of this refactor, deferred by the user: seed scope (filter
+  `pokemon` by pokedex 36 or not), Showdown Champions-mod overlay for
+  Champions-specific move changes (e.g. Dire Claw 30% vs 50%), stale rows on
+  re-run (D4). Details in `docs/relational-model.md`.
+
+**Conventions** (see `AGENTS.md`): conventional commits (`refactor(etl): …`),
+commit trailer `Co-Authored-By` as in earlier commits, one commit per item,
+never push without being asked, and say "calc (calc is short for
+calculatXXX btw)" instead of the full word.
 
 Files in scope: `scripts/etl/main.go` and every file in
 `scripts/etl/internal/etl/`.
