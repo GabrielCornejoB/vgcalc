@@ -5,6 +5,7 @@ CREATE SCHEMA IF NOT EXISTS vgcalc;
 
 CREATE TABLE vgcalc.types (
   id           SERIAL PRIMARY KEY,
+  pokeapi_id   INTEGER NOT NULL UNIQUE,
   slug         TEXT NOT NULL UNIQUE,
   display_name TEXT NOT NULL
 );
@@ -18,6 +19,7 @@ CREATE TABLE vgcalc.type_efficacy (
 
 CREATE TABLE vgcalc.abilities (
   id           SERIAL PRIMARY KEY,
+  pokeapi_id   INTEGER NOT NULL UNIQUE,
   slug         TEXT NOT NULL UNIQUE,
   display_name TEXT NOT NULL,
   short_effect TEXT,
@@ -26,15 +28,16 @@ CREATE TABLE vgcalc.abilities (
 
 CREATE TABLE vgcalc.moves (
   id           SERIAL PRIMARY KEY,
+  pokeapi_id   INTEGER NOT NULL UNIQUE,
   slug         TEXT NOT NULL UNIQUE,
   display_name TEXT NOT NULL,
   short_effect TEXT,
   effect       TEXT,
   type_id      INTEGER NOT NULL REFERENCES vgcalc.types (id),
   category     TEXT NOT NULL CHECK (category IN ('physical', 'special', 'status')),
-  power        INTEGER CHECK (power > 0),
-  accuracy     INTEGER CHECK (accuracy BETWEEN 1 AND 100),
-  pp           INTEGER NOT NULL CHECK (pp >= 1),
+  power        INTEGER NOT NULL CHECK (power >= 0),
+  accuracy     INTEGER NOT NULL CHECK (accuracy BETWEEN 0 AND 100),
+  pp           INTEGER NOT NULL CHECK (pp >= 0),
   priority     INTEGER NOT NULL DEFAULT 0,
   target       TEXT NOT NULL,
   is_contact   BOOLEAN NOT NULL DEFAULT FALSE,
@@ -52,15 +55,17 @@ CREATE TABLE vgcalc.moves (
 
 CREATE TABLE vgcalc.items (
   id           SERIAL PRIMARY KEY,
+  pokeapi_id   INTEGER NOT NULL UNIQUE,
   slug         TEXT NOT NULL UNIQUE,
   display_name TEXT NOT NULL,
   short_effect TEXT,
   effect       TEXT,
-  fling_power  INTEGER CHECK (fling_power >= 0)
+  fling_power  INTEGER NOT NULL DEFAULT 0 CHECK (fling_power >= 0)
 );
 
 CREATE TABLE vgcalc.natures (
   id           SERIAL PRIMARY KEY,
+  pokeapi_id   INTEGER NOT NULL UNIQUE,
   slug         TEXT NOT NULL UNIQUE,
   display_name TEXT NOT NULL,
   plus_stat    TEXT NOT NULL CHECK (plus_stat IN ('atk', 'def', 'spa', 'spd', 'spe')),
@@ -69,6 +74,7 @@ CREATE TABLE vgcalc.natures (
 
 CREATE TABLE vgcalc.pokemon (
   id                SERIAL PRIMARY KEY,
+  pokeapi_id        INTEGER NOT NULL UNIQUE,
   slug              TEXT NOT NULL UNIQUE,
   display_name      TEXT NOT NULL,
   primary_type_id   INTEGER NOT NULL REFERENCES vgcalc.types (id),
@@ -88,6 +94,7 @@ CREATE TABLE vgcalc.pokemon (
 
 CREATE TABLE vgcalc.mega_evolution (
   id                SERIAL PRIMARY KEY,
+  pokeapi_id        INTEGER NOT NULL UNIQUE,
   base_pokemon_id   INTEGER NOT NULL REFERENCES vgcalc.pokemon (id),
   slug              TEXT NOT NULL UNIQUE,
   required_item_id  INTEGER REFERENCES vgcalc.items (id),
