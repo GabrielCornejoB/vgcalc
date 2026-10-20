@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"vgcalc/etl/internal/csv"
+	"vgcalc/etl/internal/entity"
 )
 
 const (
@@ -27,11 +28,6 @@ type pokemonMoveCSVRow struct {
 	MethodID       int `csv:"pokemon_move_method_id"`
 }
 
-type PokemonMove struct {
-	PokemonID int
-	MoveID    int
-}
-
 func NewPokemonMovesStrategy(db *sql.DB, dataDir string) PokemonMovesStrategy {
 	return PokemonMovesStrategy{
 		DB:                  db,
@@ -40,31 +36,75 @@ func NewPokemonMovesStrategy(db *sql.DB, dataDir string) PokemonMovesStrategy {
 }
 
 func (s PokemonMovesStrategy) Run() error {
-	rows, err := csv.ReadFile[pokemonMoveCSVRow](s.pokemonMovesCSVPath)
+	src, err := s.extract()
+	if err != nil {
+		return err
+	}
+	pokemonMoves, err := transformPokemonMoves(src)
 	if err != nil {
 		return err
 	}
 
-	pokemonMap, err := queryPokeapiIDMap(s.DB, vgcalcPokemon)
-	if err != nil {
-		return err
+	return loadPokemonMoves(s.DB, pokemonMoves)
+}
+
+type pokemonMovesSource struct {
+	pokemonMoveRows []pokemonMoveCSVRow
+	pokemonMap      map[int]int
+	movesMap        map[int]int
+}
+
+func (s PokemonMovesStrategy) extract() (pokemonMovesSource, error) {
+	var src pokemonMovesSource
+	var err error
+
+	if src.pokemonMoveRows, err = csv.ReadFile[pokemonMoveCSVRow](s.pokemonMovesCSVPath); err != nil {
+		return src, err
 	}
-	movesMap, err := queryPokeapiIDMap(s.DB, vgcalcMoves)
-	if err != nil {
-		return err
+	if src.pokemonMap, err = queryPokeapiIDMap(s.DB, vgcalcPokemon); err != nil {
+		return src, err
+	}
+	if src.movesMap, err = queryPokeapiIDMap(s.DB, vgcalcMoves); err != nil {
+		return src, err
 	}
 
-	pokemonMoves, err := buildPokemonMoves(rows, pokemonMap, movesMap)
-	if err != nil {
-		return err
+	return src, nil
+}
+
+func transformPokemonMoves(src pokemonMovesSource) ([]entity.PokemonMove, error) {
+	pokemonMoves := make([]entity.PokemonMove, 0, len(src.pokemonMoveRows))
+	for _, row := range src.pokemonMoveRows {
+		if row.VersionGroupID != championsVersionGroupID || row.MethodID != trainMoveMethodID {
+			continue
+		}
+		// Megas and primals live in mega_evolution, so their rows have no
+		// vgcalc.pokemon match; they inherit the base pokemon's move list.
+		pokemonID, ok := src.pokemonMap[row.PokemonID]
+		if !ok {
+			continue
+		}
+		moveID, ok := src.movesMap[row.MoveID]
+		if !ok {
+			return nil, fmt.Errorf("transformPokemonMoves(): unknown move_id=%d for pokemon_id=%d",
+				row.MoveID, row.PokemonID)
+		}
+		pokemonMove := entity.PokemonMove{PokemonID: pokemonID, MoveID: moveID}
+		if err := pokemonMove.Validate(); err != nil {
+			return nil, fmt.Errorf("transformPokemonMoves(): %w", err)
+		}
+		pokemonMoves = append(pokemonMoves, pokemonMove)
 	}
 
+	return pokemonMoves, nil
+}
+
+func loadPokemonMoves(db *sql.DB, pokemonMoves []entity.PokemonMove) error {
 	// DO NOTHING (not UPDATE): the row has no columns besides its key, and it
 	// also absorbs any duplicate pair left in the source.
 	const query = `INSERT INTO vgcalc.pokemon_moves (pokemon_id, move_id) VALUES ($1, $2)
 	ON CONFLICT (pokemon_id, move_id) DO NOTHING`
 
-	return inTx(s.DB, func(tx *sql.Tx) error {
+	return inTx(db, func(tx *sql.Tx) error {
 		for _, pokemonMove := range pokemonMoves {
 			if _, err := tx.Exec(query, pokemonMove.PokemonID, pokemonMove.MoveID); err != nil {
 				return fmt.Errorf("error inserting pokemon_move %v. %w", pokemonMove, err)
@@ -73,26 +113,4 @@ func (s PokemonMovesStrategy) Run() error {
 
 		return nil
 	})
-}
-
-func buildPokemonMoves(rows []pokemonMoveCSVRow, pokemonMap map[int]int, movesMap map[int]int) ([]PokemonMove, error) {
-	pokemonMoves := make([]PokemonMove, 0, len(rows))
-	for _, row := range rows {
-		if row.VersionGroupID != championsVersionGroupID || row.MethodID != trainMoveMethodID {
-			continue
-		}
-		// Megas and primals live in mega_evolution, so their rows have no
-		// vgcalc.pokemon match; they inherit the base pokemon's move list.
-		pokemonID, ok := pokemonMap[row.PokemonID]
-		if !ok {
-			continue
-		}
-		moveID, ok := movesMap[row.MoveID]
-		if !ok {
-			return nil, fmt.Errorf("buildPokemonMoves(): unknown move_id=%d for pokemon_id=%d", row.MoveID, row.PokemonID)
-		}
-		pokemonMoves = append(pokemonMoves, PokemonMove{PokemonID: pokemonID, MoveID: moveID})
-	}
-
-	return pokemonMoves, nil
 }
