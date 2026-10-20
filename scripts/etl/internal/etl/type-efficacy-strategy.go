@@ -25,14 +25,14 @@ func NewTypeEfficacyStrategy(db *sql.DB, dataDir string) TypeEfficacyStrategy {
 func (s TypeEfficacyStrategy) Run() error {
 	rows, err := csv.LoadFile[typeEfficacyCSVRow](s.CSVPath)
 	if err != nil {
-		return fmt.Errorf("TypeEfficacyStrategy: %w", err)
+		return err
 	}
 
 	typeEfficacies := parseTypeEfficacies(rows)
 
 	typesMap, err := loadPokeapiIDMap(s.DB, vgcalcTypes)
 	if err != nil {
-		return fmt.Errorf("TypeEfficacyStrategy: %w", err)
+		return err
 	}
 
 	const query = `INSERT INTO vgcalc.type_efficacy (attack_type_id, target_type_id, multiplier) VALUES ($1, $2, $3)
@@ -40,27 +40,27 @@ func (s TypeEfficacyStrategy) Run() error {
 
 	tx, err := s.DB.Begin()
 	if err != nil {
-		return fmt.Errorf("TypeEfficacyStrategy: error starting transaction. %w", err)
+		return fmt.Errorf("error starting transaction. %w", err)
 	}
 	defer tx.Rollback()
 
 	for _, typeEfficacy := range typeEfficacies {
 		attackId, attackIdExists := typesMap[typeEfficacy.AttackTypeId]
 		if !attackIdExists {
-			return fmt.Errorf("TypeEfficacyStrategy: unknown attack_type_id=%d", typeEfficacy.AttackTypeId)
+			return fmt.Errorf("unknown attack_type_id=%d", typeEfficacy.AttackTypeId)
 		}
 		targetId, targetIdExists := typesMap[typeEfficacy.TargetTypeId]
 		if !targetIdExists {
-			return fmt.Errorf("TypeEfficacyStrategy: unknown target_type_id=%d", typeEfficacy.TargetTypeId)
+			return fmt.Errorf("unknown target_type_id=%d", typeEfficacy.TargetTypeId)
 		}
 		_, err := tx.Exec(query, attackId, targetId, typeEfficacy.Multiplier)
 		if err != nil {
-			return fmt.Errorf("TypeEfficacyStrategy: typeEfficacy=%v. %w", typeEfficacy, err)
+			return fmt.Errorf("typeEfficacy=%v. %w", typeEfficacy, err)
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("TypeEfficacyStrategy: error committing transaction. %w", err)
+		return fmt.Errorf("error committing transaction. %w", err)
 	}
 	return nil
 }

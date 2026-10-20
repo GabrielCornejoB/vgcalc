@@ -81,43 +81,43 @@ var moveTargetIDToSlug = map[int]string{
 func (s MoveStrategy) Run() error {
 	rows, err := csv.LoadFile[moveCSVRow](s.movesCSVPath)
 	if err != nil {
-		return fmt.Errorf("MoveStrategy: %w", err)
+		return err
 	}
 
 	typesMap, err := loadPokeapiIDMap(s.DB, vgcalcTypes)
 	if err != nil {
-		return fmt.Errorf("MoveStrategy: %w", err)
+		return err
 	}
 
 	moves, movesMap, movesPerEffect, err := buildMoves(rows, typesMap)
 	if err != nil {
-		return fmt.Errorf("MoveStrategy: %w", err)
+		return err
 	}
 
 	nameRows, err := csv.LoadFile[moveNameCSVRow](s.moveNamesCSVPath)
 	if err != nil {
-		return fmt.Errorf("MoveStrategy: %w", err)
+		return err
 	}
 
 	applyMoveNames(nameRows, moves, movesMap)
 
 	effectRows, err := csv.LoadFile[moveEffectCSVRow](s.moveEffectProseCSVPath)
 	if err != nil {
-		return fmt.Errorf("MoveStrategy: %w", err)
+		return err
 	}
 
 	applyMoveEffects(effectRows, moves, movesPerEffect)
 
 	flagRows, err := csv.LoadFile[moveFlagMapCSVRow](s.moveFlagMapCSVPath)
 	if err != nil {
-		return fmt.Errorf("MoveStrategy: %w", err)
+		return err
 	}
 
 	applyMoveFlags(flagRows, moves, movesMap)
 
 	metaRows, err := csv.LoadFile[moveMetaCSVRow](s.moveMetaCSVPath)
 	if err != nil {
-		return fmt.Errorf("MoveStrategy: %w", err)
+		return err
 	}
 
 	applyMoveMeta(metaRows, moves, movesMap)
@@ -157,7 +157,7 @@ func (s MoveStrategy) Run() error {
 
 	tx, err := s.DB.Begin()
 	if err != nil {
-		return fmt.Errorf("MoveStrategy: error starting transaction. %w", err)
+		return fmt.Errorf("error starting transaction. %w", err)
 	}
 	defer tx.Rollback()
 
@@ -168,11 +168,11 @@ func (s MoveStrategy) Run() error {
 			move.Target, move.IsContact, move.IsPunch, move.IsBite, move.IsSound,
 			move.IsPulse, move.IsBullet, move.IsSlicing, move.IsWind, move.MinHits, move.MaxHits)
 		if err != nil {
-			return fmt.Errorf("MoveStrategy: error inserting move %v. %w", move, err)
+			return fmt.Errorf("error inserting move %v. %w", move, err)
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("MoveStrategy: error committing transaction. %w", err)
+		return fmt.Errorf("error committing transaction. %w", err)
 	}
 
 	return nil

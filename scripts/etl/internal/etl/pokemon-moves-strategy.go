@@ -42,21 +42,21 @@ func NewPokemonMovesStrategy(db *sql.DB, dataDir string) PokemonMovesStrategy {
 func (s PokemonMovesStrategy) Run() error {
 	rows, err := csv.LoadFile[pokemonMoveCSVRow](s.pokemonMovesCSVPath)
 	if err != nil {
-		return fmt.Errorf("PokemonMovesStrategy: %w", err)
+		return err
 	}
 
 	pokemonMap, err := loadPokeapiIDMap(s.DB, vgcalcPokemon)
 	if err != nil {
-		return fmt.Errorf("PokemonMovesStrategy: %w", err)
+		return err
 	}
 	movesMap, err := loadPokeapiIDMap(s.DB, vgcalcMoves)
 	if err != nil {
-		return fmt.Errorf("PokemonMovesStrategy: %w", err)
+		return err
 	}
 
 	pokemonMoves, err := buildPokemonMoves(rows, pokemonMap, movesMap)
 	if err != nil {
-		return fmt.Errorf("PokemonMovesStrategy: %w", err)
+		return err
 	}
 
 	// DO NOTHING (not UPDATE): the row has no columns besides its key, and it
@@ -66,17 +66,17 @@ func (s PokemonMovesStrategy) Run() error {
 
 	tx, err := s.DB.Begin()
 	if err != nil {
-		return fmt.Errorf("PokemonMovesStrategy: error starting transaction. %w", err)
+		return fmt.Errorf("error starting transaction. %w", err)
 	}
 	defer tx.Rollback()
 
 	for _, pokemonMove := range pokemonMoves {
 		if _, err := tx.Exec(query, pokemonMove.PokemonID, pokemonMove.MoveID); err != nil {
-			return fmt.Errorf("PokemonMovesStrategy: error inserting pokemon_move %v. %w", pokemonMove, err)
+			return fmt.Errorf("error inserting pokemon_move %v. %w", pokemonMove, err)
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("PokemonMovesStrategy: error committing transaction. %w", err)
+		return fmt.Errorf("error committing transaction. %w", err)
 	}
 
 	return nil

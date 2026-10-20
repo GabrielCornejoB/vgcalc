@@ -59,18 +59,18 @@ func NewPokemonStrategy(db *sql.DB, dataDir string) PokemonStrategy {
 func (s PokemonStrategy) Run() error {
 	pokemonRows, err := csv.LoadFile[PokemonCSVRow](s.pokemonCSVPath)
 	if err != nil {
-		return fmt.Errorf("PokemonStrategy: %w", err)
+		return err
 	}
 
 	formRows, err := csv.LoadFile[PokemonFormCSVRow](s.pokemonFormsCSVPath)
 	if err != nil {
-		return fmt.Errorf("PokemonStrategy: %w", err)
+		return err
 	}
 	megaIDs := megaEvolutionPokemonIDs(formRows)
 
 	speciesRows, err := csv.LoadFile[pokemonSpeciesCSVRow](s.pokemonSpeciesCSVPath)
 	if err != nil {
-		return fmt.Errorf("PokemonStrategy: %w", err)
+		return err
 	}
 	speciesGenders := speciesFixedGenders(speciesRows)
 
@@ -78,35 +78,35 @@ func (s PokemonStrategy) Run() error {
 
 	typesMap, err := loadPokeapiIDMap(s.DB, vgcalcTypes)
 	if err != nil {
-		return fmt.Errorf("PokemonStrategy: %w", err)
+		return err
 	}
 	abilitiesMap, err := loadPokeapiIDMap(s.DB, vgcalcAbilities)
 	if err != nil {
-		return fmt.Errorf("PokemonStrategy: %w", err)
+		return err
 	}
 
 	statRows, err := csv.LoadFile[PokemonStatCSVRow](s.pokemonStatsCSVPath)
 	if err != nil {
-		return fmt.Errorf("PokemonStrategy: %w", err)
+		return err
 	}
 	if err := applyPokemonStats(statRows, pokemons, pokemonsMap); err != nil {
-		return fmt.Errorf("PokemonStrategy: %w", err)
+		return err
 	}
 
 	typeRows, err := csv.LoadFile[PokemonTypeCSVRow](s.pokemonTypesCSVPath)
 	if err != nil {
-		return fmt.Errorf("PokemonStrategy: %w", err)
+		return err
 	}
 	if err := applyPokemonTypes(typeRows, pokemons, pokemonsMap, typesMap); err != nil {
-		return fmt.Errorf("PokemonStrategy: %w", err)
+		return err
 	}
 
 	abilityRows, err := csv.LoadFile[PokemonAbilityCSVRow](s.pokemonAbilitiesCSVPath)
 	if err != nil {
-		return fmt.Errorf("PokemonStrategy: %w", err)
+		return err
 	}
 	if err := applyPokemonAbilities(abilityRows, pokemons, pokemonsMap, abilitiesMap); err != nil {
-		return fmt.Errorf("PokemonStrategy: %w", err)
+		return err
 	}
 
 	const query = `INSERT INTO vgcalc.pokemon (
@@ -134,7 +134,7 @@ func (s PokemonStrategy) Run() error {
 
 	tx, err := s.DB.Begin()
 	if err != nil {
-		return fmt.Errorf("PokemonStrategy: error starting transaction. %w", err)
+		return fmt.Errorf("error starting transaction. %w", err)
 	}
 	defer tx.Rollback()
 
@@ -144,11 +144,11 @@ func (s PokemonStrategy) Run() error {
 			pokemon.HP, pokemon.Atk, pokemon.Def, pokemon.SpA, pokemon.SpD, pokemon.Spe,
 			pokemon.Ability1ID, pokemon.Ability2ID, pokemon.HiddenAbilityID, pokemon.Weight, pokemon.FixedGender)
 		if err != nil {
-			return fmt.Errorf("PokemonStrategy: error inserting pokemon %v. %w", pokemon, err)
+			return fmt.Errorf("error inserting pokemon %v. %w", pokemon, err)
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("PokemonStrategy: error committing transaction. %w", err)
+		return fmt.Errorf("error committing transaction. %w", err)
 	}
 
 	return nil

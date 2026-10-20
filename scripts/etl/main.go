@@ -55,7 +55,7 @@ func main() {
 
 	for _, strategy := range strategies {
 		if err := strategy.Run(); err != nil {
-			fmt.Println(err.Error())
+			fmt.Printf("%T: %s\n", strategy, err)
 			os.Exit(1)
 		}
 	}

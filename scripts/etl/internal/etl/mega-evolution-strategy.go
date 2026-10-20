@@ -50,48 +50,48 @@ func NewMegaEvolutionStrategy(db *sql.DB, dataDir string) MegaEvolutionStrategy 
 func (s MegaEvolutionStrategy) Run() error {
 	pokemonRows, err := csv.LoadFile[PokemonCSVRow](s.pokemonCSVPath)
 	if err != nil {
-		return fmt.Errorf("MegaEvolutionStrategy: %w", err)
+		return err
 	}
 	formRows, err := csv.LoadFile[PokemonFormCSVRow](s.pokemonFormsCSVPath)
 	if err != nil {
-		return fmt.Errorf("MegaEvolutionStrategy: %w", err)
+		return err
 	}
 	conditionRows, err := csv.LoadFile[megaFormConditionCSVRow](s.formConditionsCSVPath)
 	if err != nil {
-		return fmt.Errorf("MegaEvolutionStrategy: %w", err)
+		return err
 	}
 	statRows, err := csv.LoadFile[PokemonStatCSVRow](s.pokemonStatsCSVPath)
 	if err != nil {
-		return fmt.Errorf("MegaEvolutionStrategy: %w", err)
+		return err
 	}
 	typeRows, err := csv.LoadFile[PokemonTypeCSVRow](s.pokemonTypesCSVPath)
 	if err != nil {
-		return fmt.Errorf("MegaEvolutionStrategy: %w", err)
+		return err
 	}
 	abilityRows, err := csv.LoadFile[PokemonAbilityCSVRow](s.pokemonAbilitiesCSVPath)
 	if err != nil {
-		return fmt.Errorf("MegaEvolutionStrategy: %w", err)
+		return err
 	}
 
 	typesMap, err := loadPokeapiIDMap(s.DB, vgcalcTypes)
 	if err != nil {
-		return fmt.Errorf("MegaEvolutionStrategy: %w", err)
+		return err
 	}
 	abilitiesMap, err := loadPokeapiIDMap(s.DB, vgcalcAbilities)
 	if err != nil {
-		return fmt.Errorf("MegaEvolutionStrategy: %w", err)
+		return err
 	}
 	itemsMap, err := loadPokeapiIDMap(s.DB, vgcalcItems)
 	if err != nil {
-		return fmt.Errorf("MegaEvolutionStrategy: %w", err)
+		return err
 	}
 	pokemonMap, err := loadPokeapiIDMap(s.DB, vgcalcPokemon)
 	if err != nil {
-		return fmt.Errorf("MegaEvolutionStrategy: %w", err)
+		return err
 	}
 	movesMap, err := loadPokeapiIDMap(s.DB, vgcalcMoves)
 	if err != nil {
-		return fmt.Errorf("MegaEvolutionStrategy: %w", err)
+		return err
 	}
 
 	megaEvolutionIDs := megaEvolutionPokemonIDs(formRows)
@@ -101,17 +101,17 @@ func (s MegaEvolutionStrategy) Run() error {
 
 	megas, megasMap, err := buildMegaEvolutions(pokemonRows, triggers, slot1s, bases, pokemonMap, itemsMap, movesMap)
 	if err != nil {
-		return fmt.Errorf("MegaEvolutionStrategy: %w", err)
+		return err
 	}
 
 	if err := applyMegaStats(statRows, megas, megasMap); err != nil {
-		return fmt.Errorf("MegaEvolutionStrategy: %w", err)
+		return err
 	}
 	if err := applyMegaTypes(typeRows, megas, megasMap, typesMap); err != nil {
-		return fmt.Errorf("MegaEvolutionStrategy: %w", err)
+		return err
 	}
 	if err := applyMegaAbilities(abilityRows, megas, megasMap, abilitiesMap); err != nil {
-		return fmt.Errorf("MegaEvolutionStrategy: %w", err)
+		return err
 	}
 
 	const query = `INSERT INTO vgcalc.mega_evolution (
@@ -138,7 +138,7 @@ func (s MegaEvolutionStrategy) Run() error {
 
 	tx, err := s.DB.Begin()
 	if err != nil {
-		return fmt.Errorf("MegaEvolutionStrategy: error starting transaction. %w", err)
+		return fmt.Errorf("error starting transaction. %w", err)
 	}
 	defer tx.Rollback()
 
@@ -148,11 +148,11 @@ func (s MegaEvolutionStrategy) Run() error {
 			mega.AbilityID, mega.PrimaryTypeID, mega.SecondaryTypeID,
 			mega.HP, mega.Atk, mega.Def, mega.SpA, mega.SpD, mega.Spe, mega.Weight)
 		if err != nil {
-			return fmt.Errorf("MegaEvolutionStrategy: error inserting mega %v. %w", mega, err)
+			return fmt.Errorf("error inserting mega %v. %w", mega, err)
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("MegaEvolutionStrategy: error committing transaction. %w", err)
+		return fmt.Errorf("error committing transaction. %w", err)
 	}
 
 	return nil

@@ -34,19 +34,19 @@ func NewAbilityStrategy(db *sql.DB, dataDir string) AbilityStrategy {
 func (s AbilityStrategy) Run() error {
 	abilityRows, err := csv.LoadFile[abilityCSVRow](s.abilitiesCSVPath)
 	if err != nil {
-		return fmt.Errorf("AbilityStrategy: %w", err)
+		return err
 	}
 	abilities, abilitiesMap := buildAbilities(abilityRows)
 
 	nameRows, err := csv.LoadFile[abilityNameCSVRow](s.abilityNamesCSVPath)
 	if err != nil {
-		return fmt.Errorf("AbilityStrategy: %w", err)
+		return err
 	}
 	applyAbilityNames(nameRows, abilities, abilitiesMap)
 
 	proseRows, err := csv.LoadFile[abilityProseCSVRow](s.abilityProseCSVPath)
 	if err != nil {
-		return fmt.Errorf("AbilityStrategy: %w", err)
+		return err
 	}
 	applyAbilityEffects(proseRows, abilities, abilitiesMap)
 
@@ -60,18 +60,18 @@ func (s AbilityStrategy) Run() error {
 
 	tx, err := s.DB.Begin()
 	if err != nil {
-		return fmt.Errorf("AbilityStrategy: error starting transaction. %w", err)
+		return fmt.Errorf("error starting transaction. %w", err)
 	}
 	defer tx.Rollback()
 
 	for _, ability := range abilities {
 		_, err := tx.Exec(query, ability.PokeapiID, ability.Slug, ability.DisplayName, ability.ShortEffect, ability.Effect)
 		if err != nil {
-			return fmt.Errorf("AbilityStrategy: error inserting ability %v. %w", ability, err)
+			return fmt.Errorf("error inserting ability %v. %w", ability, err)
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("AbilityStrategy: error commiting transaction. %w", err)
+		return fmt.Errorf("error commiting transaction. %w", err)
 	}
 
 	return nil

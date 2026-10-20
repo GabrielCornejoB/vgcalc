@@ -27,7 +27,7 @@ func NewTypeStrategy(db *sql.DB, dataDir string) TypeStrategy {
 func (s TypeStrategy) Run() error {
 	rows, err := csv.LoadFile[typeCSVRow](s.CSVPath)
 	if err != nil {
-		return fmt.Errorf("TypeStrategy: %w", err)
+		return err
 	}
 
 	pokemonTypes := loadTypes(rows)
@@ -37,19 +37,19 @@ func (s TypeStrategy) Run() error {
 
 	tx, err := s.DB.Begin()
 	if err != nil {
-		return fmt.Errorf("TypeStrategy: error starting transaction. %w", err)
+		return fmt.Errorf("error starting transaction. %w", err)
 	}
 	defer tx.Rollback()
 
 	for _, pokemonType := range pokemonTypes {
 		_, err := tx.Exec(query, pokemonType.PokeapiID, pokemonType.Slug, pokemonType.DisplayName)
 		if err != nil {
-			return fmt.Errorf("TypeStrategy: error inserting pokemonType=%v. %w", pokemonType, err)
+			return fmt.Errorf("error inserting pokemonType=%v. %w", pokemonType, err)
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("TypeStrategy: error committing transaction. %w", err)
+		return fmt.Errorf("error committing transaction. %w", err)
 	}
 
 	return nil

@@ -40,16 +40,16 @@ var statIDToSlug = map[int]string{
 func (s NatureStrategy) Run() error {
 	natureRows, err := csv.LoadFile[natureCSVRow](s.naturesCSVPath)
 	if err != nil {
-		return fmt.Errorf("NatureStrategy: %w", err)
+		return err
 	}
 	natures, naturesMap, err := buildNatures(natureRows)
 	if err != nil {
-		return fmt.Errorf("NatureStrategy: %w", err)
+		return err
 	}
 
 	nameRows, err := csv.LoadFile[natureNameCSVRow](s.natureNamesCSVPath)
 	if err != nil {
-		return fmt.Errorf("NatureStrategy: %w", err)
+		return err
 	}
 	applyNatureNames(nameRows, natures, naturesMap)
 
@@ -63,18 +63,18 @@ func (s NatureStrategy) Run() error {
 
 	tx, err := s.DB.Begin()
 	if err != nil {
-		return fmt.Errorf("NatureStrategy: error starting transaction. %w", err)
+		return fmt.Errorf("error starting transaction. %w", err)
 	}
 	defer tx.Rollback()
 
 	for _, nature := range natures {
 		_, err := tx.Exec(query, nature.PokeapiID, nature.Slug, nature.DisplayName, nature.PlusStat, nature.MinusStat)
 		if err != nil {
-			return fmt.Errorf("NatureStrategy: error inserting nature %v. %w", nature, err)
+			return fmt.Errorf("error inserting nature %v. %w", nature, err)
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("NatureStrategy: error committing transaction. %w", err)
+		return fmt.Errorf("error committing transaction. %w", err)
 	}
 
 	return nil

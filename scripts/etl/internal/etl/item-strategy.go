@@ -35,19 +35,19 @@ func NewItemStrategy(db *sql.DB, dataDir string) ItemStrategy {
 func (s ItemStrategy) Run() error {
 	itemRows, err := csv.LoadFile[itemCSVRow](s.itemsCSVPath)
 	if err != nil {
-		return fmt.Errorf("ItemStrategy: %w", err)
+		return err
 	}
 	items, itemsMap := buildItems(itemRows)
 
 	nameRows, err := csv.LoadFile[itemNameCSVRow](s.itemNamesCSVPath)
 	if err != nil {
-		return fmt.Errorf("ItemStrategy: %w", err)
+		return err
 	}
 	applyItemNames(nameRows, items, itemsMap)
 
 	proseRows, err := csv.LoadFile[itemProseCSVRow](s.itemProseCSVPath)
 	if err != nil {
-		return fmt.Errorf("ItemStrategy: %w", err)
+		return err
 	}
 	applyItemEffects(proseRows, items, itemsMap)
 
@@ -62,18 +62,18 @@ func (s ItemStrategy) Run() error {
 
 	tx, err := s.DB.Begin()
 	if err != nil {
-		return fmt.Errorf("ItemStrategy: error starting transaction. %w", err)
+		return fmt.Errorf("error starting transaction. %w", err)
 	}
 	defer tx.Rollback()
 
 	for _, item := range items {
 		_, err := tx.Exec(query, item.PokeapiID, item.Slug, item.DisplayName, item.ShortEffect, item.Effect, item.FlingPower)
 		if err != nil {
-			return fmt.Errorf("ItemStrategy: error inserting item %v. %w", item, err)
+			return fmt.Errorf("error inserting item %v. %w", item, err)
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("ItemStrategy: error committing transaction. %w", err)
+		return fmt.Errorf("error committing transaction. %w", err)
 	}
 
 	return nil
