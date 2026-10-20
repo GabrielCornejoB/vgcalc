@@ -23,14 +23,14 @@ func NewTypeEfficacyStrategy(db *sql.DB, dataDir string) TypeEfficacyStrategy {
 }
 
 func (s TypeEfficacyStrategy) Run() error {
-	rows, err := csv.LoadFile[typeEfficacyCSVRow](s.CSVPath)
+	rows, err := csv.ReadFile[typeEfficacyCSVRow](s.CSVPath)
 	if err != nil {
 		return err
 	}
 
 	typeEfficacies := parseTypeEfficacies(rows)
 
-	typesMap, err := loadPokeapiIDMap(s.DB, vgcalcTypes)
+	typesMap, err := queryPokeapiIDMap(s.DB, vgcalcTypes)
 	if err != nil {
 		return err
 	}

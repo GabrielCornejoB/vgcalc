@@ -38,7 +38,7 @@ var statIDToSlug = map[int]string{
 }
 
 func (s NatureStrategy) Run() error {
-	natureRows, err := csv.LoadFile[natureCSVRow](s.naturesCSVPath)
+	natureRows, err := csv.ReadFile[natureCSVRow](s.naturesCSVPath)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func (s NatureStrategy) Run() error {
 		return err
 	}
 
-	nameRows, err := csv.LoadFile[natureNameCSVRow](s.natureNamesCSVPath)
+	nameRows, err := csv.ReadFile[natureNameCSVRow](s.natureNamesCSVPath)
 	if err != nil {
 		return err
 	}

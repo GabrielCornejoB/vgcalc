@@ -25,12 +25,12 @@ func NewTypeStrategy(db *sql.DB, dataDir string) TypeStrategy {
 }
 
 func (s TypeStrategy) Run() error {
-	rows, err := csv.LoadFile[typeCSVRow](s.CSVPath)
+	rows, err := csv.ReadFile[typeCSVRow](s.CSVPath)
 	if err != nil {
 		return err
 	}
 
-	pokemonTypes := loadTypes(rows)
+	pokemonTypes := transformTypes(rows)
 
 	const query = `INSERT INTO vgcalc.types (pokeapi_id, slug, display_name) VALUES ($1, $2, $3)
 	ON CONFLICT (pokeapi_id) DO UPDATE SET slug = EXCLUDED.slug, display_name = EXCLUDED.display_name`
@@ -52,7 +52,7 @@ type typeCSVRow struct {
 	Identifier string `csv:"identifier"`
 }
 
-func loadTypes(rows []typeCSVRow) []PokemonType {
+func transformTypes(rows []typeCSVRow) []PokemonType {
 	caser := cases.Title(language.English)
 	pokemonTypes := make([]PokemonType, 0, len(rows))
 	for _, row := range rows {

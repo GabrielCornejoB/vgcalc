@@ -79,12 +79,12 @@ var moveTargetIDToSlug = map[int]string{
 }
 
 func (s MoveStrategy) Run() error {
-	rows, err := csv.LoadFile[moveCSVRow](s.movesCSVPath)
+	rows, err := csv.ReadFile[moveCSVRow](s.movesCSVPath)
 	if err != nil {
 		return err
 	}
 
-	typesMap, err := loadPokeapiIDMap(s.DB, vgcalcTypes)
+	typesMap, err := queryPokeapiIDMap(s.DB, vgcalcTypes)
 	if err != nil {
 		return err
 	}
@@ -94,28 +94,28 @@ func (s MoveStrategy) Run() error {
 		return err
 	}
 
-	nameRows, err := csv.LoadFile[moveNameCSVRow](s.moveNamesCSVPath)
+	nameRows, err := csv.ReadFile[moveNameCSVRow](s.moveNamesCSVPath)
 	if err != nil {
 		return err
 	}
 
 	applyMoveNames(nameRows, moves, movesMap)
 
-	effectRows, err := csv.LoadFile[moveEffectCSVRow](s.moveEffectProseCSVPath)
+	effectRows, err := csv.ReadFile[moveEffectCSVRow](s.moveEffectProseCSVPath)
 	if err != nil {
 		return err
 	}
 
 	applyMoveEffects(effectRows, moves, movesPerEffect)
 
-	flagRows, err := csv.LoadFile[moveFlagMapCSVRow](s.moveFlagMapCSVPath)
+	flagRows, err := csv.ReadFile[moveFlagMapCSVRow](s.moveFlagMapCSVPath)
 	if err != nil {
 		return err
 	}
 
 	applyMoveFlags(flagRows, moves, movesMap)
 
-	metaRows, err := csv.LoadFile[moveMetaCSVRow](s.moveMetaCSVPath)
+	metaRows, err := csv.ReadFile[moveMetaCSVRow](s.moveMetaCSVPath)
 	if err != nil {
 		return err
 	}

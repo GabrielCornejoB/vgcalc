@@ -65,14 +65,14 @@ func (s AbilityStrategy) extract() (abilitySource, error) {
 	var src abilitySource
 	var err error
 
-	if src.abilityRows, err = csv.LoadFile[abilityCSVRow](s.abilitiesCSVPath); err != nil {
+	if src.abilityRows, err = csv.ReadFile[abilityCSVRow](s.abilitiesCSVPath); err != nil {
 		return src, err
 	}
-	nameRows, err := csv.LoadFile[abilityNameCSVRow](s.abilityNamesCSVPath)
+	nameRows, err := csv.ReadFile[abilityNameCSVRow](s.abilityNamesCSVPath)
 	if err != nil {
 		return src, err
 	}
-	proseRows, err := csv.LoadFile[abilityProseCSVRow](s.abilityProseCSVPath)
+	proseRows, err := csv.ReadFile[abilityProseCSVRow](s.abilityProseCSVPath)
 	if err != nil {
 		return src, err
 	}

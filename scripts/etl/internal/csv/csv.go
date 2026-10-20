@@ -21,16 +21,16 @@ func unmarshal(data []byte, v any) error {
 	return dec.Decode(v)
 }
 
-// LoadFile reads a CSV file from path and maps it to a struct slice via header tags.
+// ReadFile reads a CSV file from path and maps it to a struct slice via header tags.
 // I/O + decode live here so strategy builders stay pure (in-memory slices, no os/csvutil).
-func LoadFile[T any](path string) ([]T, error) {
+func ReadFile[T any](path string) ([]T, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("csv.LoadFile(%s): %w", path, err)
+		return nil, fmt.Errorf("csv.ReadFile(%s): %w", path, err)
 	}
 	var v []T
 	if err := unmarshal(data, &v); err != nil {
-		return nil, fmt.Errorf("csv.LoadFile(%s): %w", path, err)
+		return nil, fmt.Errorf("csv.ReadFile(%s): %w", path, err)
 	}
 	return v, nil
 }

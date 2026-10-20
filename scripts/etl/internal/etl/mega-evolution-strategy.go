@@ -98,38 +98,38 @@ func (s MegaEvolutionStrategy) loadInputs() (megaEvolutionInputs, error) {
 	var in megaEvolutionInputs
 	var err error
 
-	if in.pokemonRows, err = csv.LoadFile[PokemonCSVRow](s.pokemonCSVPath); err != nil {
+	if in.pokemonRows, err = csv.ReadFile[PokemonCSVRow](s.pokemonCSVPath); err != nil {
 		return in, err
 	}
-	if in.formRows, err = csv.LoadFile[PokemonFormCSVRow](s.pokemonFormsCSVPath); err != nil {
+	if in.formRows, err = csv.ReadFile[PokemonFormCSVRow](s.pokemonFormsCSVPath); err != nil {
 		return in, err
 	}
-	if in.conditionRows, err = csv.LoadFile[megaFormConditionCSVRow](s.formConditionsCSVPath); err != nil {
+	if in.conditionRows, err = csv.ReadFile[megaFormConditionCSVRow](s.formConditionsCSVPath); err != nil {
 		return in, err
 	}
-	if in.statRows, err = csv.LoadFile[PokemonStatCSVRow](s.pokemonStatsCSVPath); err != nil {
+	if in.statRows, err = csv.ReadFile[PokemonStatCSVRow](s.pokemonStatsCSVPath); err != nil {
 		return in, err
 	}
-	if in.typeRows, err = csv.LoadFile[PokemonTypeCSVRow](s.pokemonTypesCSVPath); err != nil {
+	if in.typeRows, err = csv.ReadFile[PokemonTypeCSVRow](s.pokemonTypesCSVPath); err != nil {
 		return in, err
 	}
-	if in.abilityRows, err = csv.LoadFile[PokemonAbilityCSVRow](s.pokemonAbilitiesCSVPath); err != nil {
+	if in.abilityRows, err = csv.ReadFile[PokemonAbilityCSVRow](s.pokemonAbilitiesCSVPath); err != nil {
 		return in, err
 	}
 
-	if in.typesMap, err = loadPokeapiIDMap(s.DB, vgcalcTypes); err != nil {
+	if in.typesMap, err = queryPokeapiIDMap(s.DB, vgcalcTypes); err != nil {
 		return in, err
 	}
-	if in.abilitiesMap, err = loadPokeapiIDMap(s.DB, vgcalcAbilities); err != nil {
+	if in.abilitiesMap, err = queryPokeapiIDMap(s.DB, vgcalcAbilities); err != nil {
 		return in, err
 	}
-	if in.itemsMap, err = loadPokeapiIDMap(s.DB, vgcalcItems); err != nil {
+	if in.itemsMap, err = queryPokeapiIDMap(s.DB, vgcalcItems); err != nil {
 		return in, err
 	}
-	if in.pokemonMap, err = loadPokeapiIDMap(s.DB, vgcalcPokemon); err != nil {
+	if in.pokemonMap, err = queryPokeapiIDMap(s.DB, vgcalcPokemon); err != nil {
 		return in, err
 	}
-	if in.movesMap, err = loadPokeapiIDMap(s.DB, vgcalcMoves); err != nil {
+	if in.movesMap, err = queryPokeapiIDMap(s.DB, vgcalcMoves); err != nil {
 		return in, err
 	}
 

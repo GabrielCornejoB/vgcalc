@@ -33,19 +33,19 @@ func NewItemStrategy(db *sql.DB, dataDir string) ItemStrategy {
 }
 
 func (s ItemStrategy) Run() error {
-	itemRows, err := csv.LoadFile[itemCSVRow](s.itemsCSVPath)
+	itemRows, err := csv.ReadFile[itemCSVRow](s.itemsCSVPath)
 	if err != nil {
 		return err
 	}
 	items, itemsMap := buildItems(itemRows)
 
-	nameRows, err := csv.LoadFile[itemNameCSVRow](s.itemNamesCSVPath)
+	nameRows, err := csv.ReadFile[itemNameCSVRow](s.itemNamesCSVPath)
 	if err != nil {
 		return err
 	}
 	applyItemNames(nameRows, items, itemsMap)
 
-	proseRows, err := csv.LoadFile[itemProseCSVRow](s.itemProseCSVPath)
+	proseRows, err := csv.ReadFile[itemProseCSVRow](s.itemProseCSVPath)
 	if err != nil {
 		return err
 	}

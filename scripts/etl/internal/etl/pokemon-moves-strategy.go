@@ -40,16 +40,16 @@ func NewPokemonMovesStrategy(db *sql.DB, dataDir string) PokemonMovesStrategy {
 }
 
 func (s PokemonMovesStrategy) Run() error {
-	rows, err := csv.LoadFile[pokemonMoveCSVRow](s.pokemonMovesCSVPath)
+	rows, err := csv.ReadFile[pokemonMoveCSVRow](s.pokemonMovesCSVPath)
 	if err != nil {
 		return err
 	}
 
-	pokemonMap, err := loadPokeapiIDMap(s.DB, vgcalcPokemon)
+	pokemonMap, err := queryPokeapiIDMap(s.DB, vgcalcPokemon)
 	if err != nil {
 		return err
 	}
-	movesMap, err := loadPokeapiIDMap(s.DB, vgcalcMoves)
+	movesMap, err := queryPokeapiIDMap(s.DB, vgcalcMoves)
 	if err != nil {
 		return err
 	}
