@@ -1,4 +1,4 @@
-package etl
+package common
 
 import (
 	"database/sql"
@@ -47,16 +47,16 @@ type PokemonFormCSVRow struct {
 	IsBattleOnly   int    `csv:"is_battle_only"`
 }
 
-type pokemonSource struct {
-	pokemonRows []PokemonCSVRow
-	megaIDs     map[int]struct{}
-	stats       map[int]entity.Stats
-	types       map[int]entity.TypeSlots
-	abilities   map[int]entity.AbilitySlots
+type PokemonSource struct {
+	PokemonRows []PokemonCSVRow
+	MegaIDs     map[int]struct{}
+	Stats       map[int]entity.Stats
+	Types       map[int]entity.TypeSlots
+	Abilities   map[int]entity.AbilitySlots
 }
 
-func extractPokemonSource(db *sql.DB, dataDir string) (pokemonSource, error) {
-	var src pokemonSource
+func ExtractPokemonSource(db *sql.DB, dataDir string) (PokemonSource, error) {
+	var src PokemonSource
 
 	pokemonRows, err := csv.ReadFile[PokemonCSVRow](dataDir + "pokemon.csv")
 	if err != nil {
@@ -78,24 +78,24 @@ func extractPokemonSource(db *sql.DB, dataDir string) (pokemonSource, error) {
 	if err != nil {
 		return src, err
 	}
-	typesMap, err := queryPokeapiIDMap(db, vgcalcTypes)
+	typesMap, err := QueryPokeapiIDMap(db, TableTypes)
 	if err != nil {
 		return src, err
 	}
-	abilitiesMap, err := queryPokeapiIDMap(db, vgcalcAbilities)
+	abilitiesMap, err := QueryPokeapiIDMap(db, TableAbilities)
 	if err != nil {
 		return src, err
 	}
 
-	src.pokemonRows = pokemonRows
-	src.megaIDs = megaEvolutionPokemonIDs(formRows)
-	if src.stats, err = groupStats(statRows); err != nil {
+	src.PokemonRows = pokemonRows
+	src.MegaIDs = megaEvolutionPokemonIDs(formRows)
+	if src.Stats, err = groupStats(statRows); err != nil {
 		return src, err
 	}
-	if src.types, err = groupTypes(typeRows, typesMap); err != nil {
+	if src.Types, err = groupTypes(typeRows, typesMap); err != nil {
 		return src, err
 	}
-	if src.abilities, err = groupAbilities(abilityRows, abilitiesMap); err != nil {
+	if src.Abilities, err = groupAbilities(abilityRows, abilitiesMap); err != nil {
 		return src, err
 	}
 
@@ -123,17 +123,17 @@ func groupStats(rows []PokemonStatCSVRow) (map[int]entity.Stats, error) {
 	for _, row := range rows {
 		s := stats[row.PokemonID]
 		switch row.StatID {
-		case statHP:
+		case StatHP:
 			s.HP = row.BaseStat
-		case statAtk:
+		case StatAtk:
 			s.Atk = row.BaseStat
-		case statDef:
+		case StatDef:
 			s.Def = row.BaseStat
-		case statSpA:
+		case StatSpA:
 			s.SpA = row.BaseStat
-		case statSpD:
+		case StatSpD:
 			s.SpD = row.BaseStat
-		case statSpe:
+		case StatSpe:
 			s.Spe = row.BaseStat
 		default:
 			return nil, fmt.Errorf("groupStats(): unknown stat_id=%d for pokemon_id=%d", row.StatID, row.PokemonID)

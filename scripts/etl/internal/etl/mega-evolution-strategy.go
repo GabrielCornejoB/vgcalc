@@ -6,6 +6,7 @@ import (
 
 	"vgcalc/etl/internal/csv"
 	"vgcalc/etl/internal/entity"
+	"vgcalc/etl/internal/etl/common"
 )
 
 type MegaEvolutionStrategy struct {
@@ -53,7 +54,7 @@ const (
 )
 
 type megaEvolutionSource struct {
-	pokemonSource
+	common.PokemonSource
 	itemIDByMega           map[int]int
 	basePokemonIDBySpecies map[int]int
 	dragonAscentMoveID     int
@@ -63,10 +64,10 @@ func (s MegaEvolutionStrategy) extract() (megaEvolutionSource, error) {
 	var src megaEvolutionSource
 	var err error
 
-	if src.pokemonSource, err = extractPokemonSource(s.DB, s.dataDir); err != nil {
+	if src.PokemonSource, err = common.ExtractPokemonSource(s.DB, s.dataDir); err != nil {
 		return src, err
 	}
-	formRows, err := csv.ReadFile[PokemonFormCSVRow](s.pokemonFormsCSVPath)
+	formRows, err := csv.ReadFile[common.PokemonFormCSVRow](s.pokemonFormsCSVPath)
 	if err != nil {
 		return src, err
 	}
@@ -74,24 +75,24 @@ func (s MegaEvolutionStrategy) extract() (megaEvolutionSource, error) {
 	if err != nil {
 		return src, err
 	}
-	itemsMap, err := queryPokeapiIDMap(s.DB, vgcalcItems)
+	itemsMap, err := common.QueryPokeapiIDMap(s.DB, common.TableItems)
 	if err != nil {
 		return src, err
 	}
-	pokemonMap, err := queryPokeapiIDMap(s.DB, vgcalcPokemon)
+	pokemonMap, err := common.QueryPokeapiIDMap(s.DB, common.TablePokemon)
 	if err != nil {
 		return src, err
 	}
-	movesMap, err := queryPokeapiIDMap(s.DB, vgcalcMoves)
+	movesMap, err := common.QueryPokeapiIDMap(s.DB, common.TableMoves)
 	if err != nil {
 		return src, err
 	}
 
-	triggers := megaTriggers(formRows, conditionRows, src.megaIDs)
+	triggers := megaTriggers(formRows, conditionRows, src.MegaIDs)
 	if src.itemIDByMega, err = resolveMegaItems(triggers, itemsMap); err != nil {
 		return src, err
 	}
-	src.basePokemonIDBySpecies = resolveBasePokemon(basePokemonBySpecies(src.pokemonRows, src.megaIDs), pokemonMap)
+	src.basePokemonIDBySpecies = resolveBasePokemon(basePokemonBySpecies(src.PokemonRows, src.MegaIDs), pokemonMap)
 	dragonAscentMoveID, ok := movesMap[dragonAscentPokeapiID]
 	if !ok {
 		return src, fmt.Errorf(
@@ -108,7 +109,7 @@ func (s MegaEvolutionStrategy) extract() (megaEvolutionSource, error) {
 // zacian/zamazenta and terapagos-stellar; the megaEvolutionPokemonIDs
 // filter (is_mega=1 or primal) keeps them out.
 func megaTriggers(
-	formRows []PokemonFormCSVRow, conditionRows []megaFormConditionCSVRow, megaIDs map[int]struct{},
+	formRows []common.PokemonFormCSVRow, conditionRows []megaFormConditionCSVRow, megaIDs map[int]struct{},
 ) map[int]int {
 	formPokemon := make(map[int]int, len(formRows))
 	for _, row := range formRows {
@@ -151,8 +152,8 @@ func resolveMegaItems(triggers map[int]int, itemsMap map[int]int) (map[int]int, 
 // non-transformation varieties share a species, is_default=1 wins. The
 // pokemon_form_conditions.base_form_id column is only populated for 8 of 96
 // mega rows, so species-sharing stays the usable rule.
-func basePokemonBySpecies(pokemonRows []PokemonCSVRow, megaIDs map[int]struct{}) map[int]int {
-	candidates := make(map[int]PokemonCSVRow)
+func basePokemonBySpecies(pokemonRows []common.PokemonCSVRow, megaIDs map[int]struct{}) map[int]int {
+	candidates := make(map[int]common.PokemonCSVRow)
 	for _, row := range pokemonRows {
 		if _, excluded := megaIDs[row.ID]; excluded {
 			continue
@@ -186,7 +187,7 @@ func resolveBasePokemon(bases map[int]int, pokemonMap map[int]int) map[int]int {
 
 func transformMegaEvolutions(src megaEvolutionSource) ([]entity.MegaEvolution, error) {
 	megas := make([]entity.MegaEvolution, 0, len(src.itemIDByMega)+1)
-	for _, row := range src.pokemonRows {
+	for _, row := range src.PokemonRows {
 		itemID, hasTrigger := src.itemIDByMega[row.ID]
 		isRayquazaMega := row.ID == rayquazaMegaPokeapiID
 		if !hasTrigger && !isRayquazaMega {
@@ -195,7 +196,7 @@ func transformMegaEvolutions(src megaEvolutionSource) ([]entity.MegaEvolution, e
 		// Speculative megas (e.g. tatsugiri-drop-mega) carry a trigger item
 		// but no confirmed ability in pokemon_abilities — no usable data,
 		// so they are skipped.
-		abilities, ok := src.abilities[row.ID]
+		abilities, ok := src.Abilities[row.ID]
 		if !ok || abilities.Slot1 == 0 {
 			continue
 		}
@@ -215,8 +216,8 @@ func transformMegaEvolutions(src megaEvolutionSource) ([]entity.MegaEvolution, e
 			BasePokemonID: baseID,
 			Slug:          row.Identifier,
 			AbilityID:     abilities.Slot1,
-			Stats:         src.stats[row.ID],
-			TypeSlots:     src.types[row.ID],
+			Stats:         src.Stats[row.ID],
+			TypeSlots:     src.Types[row.ID],
 			Weight:        float64(row.Weight) / 10,
 		}
 		if hasTrigger {
@@ -258,7 +259,7 @@ func loadMegaEvolutions(db *sql.DB, megas []entity.MegaEvolution) error {
 		spe = EXCLUDED.spe,
 		weight = EXCLUDED.weight`
 
-	return inTx(db, func(tx *sql.Tx) error {
+	return common.InTx(db, func(tx *sql.Tx) error {
 		for _, mega := range megas {
 			_, err := tx.Exec(query,
 				mega.PokeapiID, mega.BasePokemonID, mega.Slug, mega.RequiredItemID, mega.RequiredMoveID,

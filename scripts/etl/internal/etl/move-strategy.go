@@ -6,6 +6,7 @@ import (
 
 	"vgcalc/etl/internal/csv"
 	"vgcalc/etl/internal/entity"
+	"vgcalc/etl/internal/etl/common"
 )
 
 type MoveStrategy struct {
@@ -119,7 +120,7 @@ func (s MoveStrategy) extract() (moveSource, error) {
 	if src.moveRows, err = csv.ReadFile[moveCSVRow](s.movesCSVPath); err != nil {
 		return src, err
 	}
-	if src.typesMap, err = queryPokeapiIDMap(s.DB, vgcalcTypes); err != nil {
+	if src.typesMap, err = common.QueryPokeapiIDMap(s.DB, common.TableTypes); err != nil {
 		return src, err
 	}
 	nameRows, err := csv.ReadFile[moveNameCSVRow](s.moveNamesCSVPath)
@@ -141,13 +142,13 @@ func (s MoveStrategy) extract() (moveSource, error) {
 
 	src.names = make(map[int]string, len(nameRows))
 	for _, row := range nameRows {
-		if row.LanguageID == pokeapiLanguageID {
+		if row.LanguageID == common.PokeapiLanguageID {
 			src.names[row.MoveID] = row.Name
 		}
 	}
 	src.effects = make(map[int]moveEffectCSVRow, len(effectRows))
 	for _, row := range effectRows {
-		if row.LanguageID == pokeapiLanguageID {
+		if row.LanguageID == common.PokeapiLanguageID {
 			src.effects[row.EffectID] = row
 		}
 	}
@@ -256,7 +257,7 @@ func loadMoves(db *sql.DB, moves []entity.Move) error {
 		min_hits = EXCLUDED.min_hits,
 		max_hits = EXCLUDED.max_hits`
 
-	return inTx(db, func(tx *sql.Tx) error {
+	return common.InTx(db, func(tx *sql.Tx) error {
 		for _, move := range moves {
 			_, err := tx.Exec(query,
 				move.PokeapiID, move.Slug, move.DisplayName, move.ShortEffect, move.Effect,

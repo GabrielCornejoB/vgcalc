@@ -6,6 +6,7 @@ import (
 
 	"vgcalc/etl/internal/csv"
 	"vgcalc/etl/internal/entity"
+	"vgcalc/etl/internal/etl/common"
 )
 
 type AbilityStrategy struct {
@@ -79,13 +80,13 @@ func (s AbilityStrategy) extract() (abilitySource, error) {
 
 	src.names = make(map[int]string, len(nameRows))
 	for _, row := range nameRows {
-		if row.LocalLanguageID == pokeapiLanguageID {
+		if row.LocalLanguageID == common.PokeapiLanguageID {
 			src.names[row.AbilityID] = row.Name
 		}
 	}
 	src.prose = make(map[int]abilityProseCSVRow, len(proseRows))
 	for _, row := range proseRows {
-		if row.LocalLanguageID == pokeapiLanguageID {
+		if row.LocalLanguageID == common.PokeapiLanguageID {
 			src.prose[row.AbilityID] = row
 		}
 	}
@@ -122,7 +123,7 @@ func loadAbilities(db *sql.DB, abilities []entity.Ability) error {
 		short_effect = EXCLUDED.short_effect,
 		effect = EXCLUDED.effect`
 
-	return inTx(db, func(tx *sql.Tx) error {
+	return common.InTx(db, func(tx *sql.Tx) error {
 		for _, ability := range abilities {
 			_, err := tx.Exec(query,
 				ability.PokeapiID, ability.Slug, ability.DisplayName,

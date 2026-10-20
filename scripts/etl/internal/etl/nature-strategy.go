@@ -6,6 +6,7 @@ import (
 
 	"vgcalc/etl/internal/csv"
 	"vgcalc/etl/internal/entity"
+	"vgcalc/etl/internal/etl/common"
 )
 
 type NatureStrategy struct {
@@ -23,11 +24,11 @@ func NewNatureStrategy(db *sql.DB, dataDir string) NatureStrategy {
 }
 
 var statIDToSlug = map[int]string{
-	statAtk: "atk",
-	statDef: "def",
-	statSpA: "spa",
-	statSpD: "spd",
-	statSpe: "spe",
+	common.StatAtk: "atk",
+	common.StatDef: "def",
+	common.StatSpA: "spa",
+	common.StatSpD: "spd",
+	common.StatSpe: "spe",
 }
 
 func (s NatureStrategy) Run() error {
@@ -75,7 +76,7 @@ func (s NatureStrategy) extract() (natureSource, error) {
 
 	src.names = make(map[int]string, len(nameRows))
 	for _, row := range nameRows {
-		if row.LocalLanguageID == pokeapiLanguageID {
+		if row.LocalLanguageID == common.PokeapiLanguageID {
 			src.names[row.NatureID] = row.Name
 		}
 	}
@@ -119,7 +120,7 @@ func loadNatures(db *sql.DB, natures []entity.Nature) error {
 		plus_stat = EXCLUDED.plus_stat,
 		minus_stat = EXCLUDED.minus_stat`
 
-	return inTx(db, func(tx *sql.Tx) error {
+	return common.InTx(db, func(tx *sql.Tx) error {
 		for _, nature := range natures {
 			_, err := tx.Exec(query,
 				nature.PokeapiID, nature.Slug, nature.DisplayName, nature.PlusStat, nature.MinusStat)

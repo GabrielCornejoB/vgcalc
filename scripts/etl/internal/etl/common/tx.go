@@ -1,13 +1,13 @@
-package etl
+package common
 
 import (
 	"database/sql"
 	"fmt"
 )
 
-// inTx runs fn inside a transaction: it commits when fn succeeds and rolls
+// InTx runs fn inside a transaction: it commits when fn succeeds and rolls
 // back when fn (or the commit) fails.
-func inTx(db *sql.DB, fn func(tx *sql.Tx) error) error {
+func InTx(db *sql.DB, fn func(tx *sql.Tx) error) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return fmt.Errorf("error starting transaction. %w", err)

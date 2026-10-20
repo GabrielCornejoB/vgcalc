@@ -6,6 +6,7 @@ import (
 
 	"vgcalc/etl/internal/csv"
 	"vgcalc/etl/internal/entity"
+	"vgcalc/etl/internal/etl/common"
 )
 
 const (
@@ -61,10 +62,10 @@ func (s PokemonMovesStrategy) extract() (pokemonMovesSource, error) {
 	if src.pokemonMoveRows, err = csv.ReadFile[pokemonMoveCSVRow](s.pokemonMovesCSVPath); err != nil {
 		return src, err
 	}
-	if src.pokemonMap, err = queryPokeapiIDMap(s.DB, vgcalcPokemon); err != nil {
+	if src.pokemonMap, err = common.QueryPokeapiIDMap(s.DB, common.TablePokemon); err != nil {
 		return src, err
 	}
-	if src.movesMap, err = queryPokeapiIDMap(s.DB, vgcalcMoves); err != nil {
+	if src.movesMap, err = common.QueryPokeapiIDMap(s.DB, common.TableMoves); err != nil {
 		return src, err
 	}
 
@@ -104,7 +105,7 @@ func loadPokemonMoves(db *sql.DB, pokemonMoves []entity.PokemonMove) error {
 	const query = `INSERT INTO vgcalc.pokemon_moves (pokemon_id, move_id) VALUES ($1, $2)
 	ON CONFLICT (pokemon_id, move_id) DO NOTHING`
 
-	return inTx(db, func(tx *sql.Tx) error {
+	return common.InTx(db, func(tx *sql.Tx) error {
 		for _, pokemonMove := range pokemonMoves {
 			if _, err := tx.Exec(query, pokemonMove.PokemonID, pokemonMove.MoveID); err != nil {
 				return fmt.Errorf("error inserting pokemon_move %v. %w", pokemonMove, err)

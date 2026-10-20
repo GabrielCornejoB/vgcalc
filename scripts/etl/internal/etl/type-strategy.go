@@ -8,6 +8,7 @@ import (
 	"golang.org/x/text/language"
 	"vgcalc/etl/internal/csv"
 	"vgcalc/etl/internal/entity"
+	"vgcalc/etl/internal/etl/common"
 )
 
 type TypeStrategy struct {
@@ -72,7 +73,7 @@ func loadTypes(db *sql.DB, pokemonTypes []entity.Type) error {
 	const query = `INSERT INTO vgcalc.types (pokeapi_id, slug, display_name) VALUES ($1, $2, $3)
 	ON CONFLICT (pokeapi_id) DO UPDATE SET slug = EXCLUDED.slug, display_name = EXCLUDED.display_name`
 
-	return inTx(db, func(tx *sql.Tx) error {
+	return common.InTx(db, func(tx *sql.Tx) error {
 		for _, pokemonType := range pokemonTypes {
 			_, err := tx.Exec(query, pokemonType.PokeapiID, pokemonType.Slug, pokemonType.DisplayName)
 			if err != nil {

@@ -6,6 +6,7 @@ import (
 
 	"vgcalc/etl/internal/csv"
 	"vgcalc/etl/internal/entity"
+	"vgcalc/etl/internal/etl/common"
 )
 
 type TypeEfficacyStrategy struct {
@@ -48,7 +49,7 @@ func (s TypeEfficacyStrategy) extract() (typeEfficacySource, error) {
 	if src.efficacyRows, err = csv.ReadFile[typeEfficacyCSVRow](s.CSVPath); err != nil {
 		return src, err
 	}
-	if src.typesMap, err = queryPokeapiIDMap(s.DB, vgcalcTypes); err != nil {
+	if src.typesMap, err = common.QueryPokeapiIDMap(s.DB, common.TableTypes); err != nil {
 		return src, err
 	}
 
@@ -84,7 +85,7 @@ func loadTypeEfficacies(db *sql.DB, typeEfficacies []entity.TypeEfficacy) error 
 	const query = `INSERT INTO vgcalc.type_efficacy (attack_type_id, target_type_id, multiplier) VALUES ($1, $2, $3)
 	ON CONFLICT (attack_type_id, target_type_id) DO UPDATE SET multiplier = EXCLUDED.multiplier`
 
-	return inTx(db, func(tx *sql.Tx) error {
+	return common.InTx(db, func(tx *sql.Tx) error {
 		for _, typeEfficacy := range typeEfficacies {
 			_, err := tx.Exec(query, typeEfficacy.AttackTypeID, typeEfficacy.TargetTypeID, typeEfficacy.Multiplier)
 			if err != nil {

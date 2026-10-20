@@ -9,6 +9,7 @@ import (
 	"golang.org/x/text/language"
 	"vgcalc/etl/internal/csv"
 	"vgcalc/etl/internal/entity"
+	"vgcalc/etl/internal/etl/common"
 )
 
 type PokemonStrategy struct {
@@ -44,7 +45,7 @@ func (s PokemonStrategy) Run() error {
 }
 
 type pokemonStrategySource struct {
-	pokemonSource
+	common.PokemonSource
 	fixedGenderBySpecies map[int]string
 }
 
@@ -52,7 +53,7 @@ func (s PokemonStrategy) extract() (pokemonStrategySource, error) {
 	var src pokemonStrategySource
 	var err error
 
-	if src.pokemonSource, err = extractPokemonSource(s.DB, s.dataDir); err != nil {
+	if src.PokemonSource, err = common.ExtractPokemonSource(s.DB, s.dataDir); err != nil {
 		return src, err
 	}
 	speciesRows, err := csv.ReadFile[pokemonSpeciesCSVRow](s.pokemonSpeciesCSVPath)
@@ -66,9 +67,9 @@ func (s PokemonStrategy) extract() (pokemonStrategySource, error) {
 
 func transformPokemon(src pokemonStrategySource) ([]entity.Pokemon, error) {
 	caser := cases.Title(language.English)
-	pokemons := make([]entity.Pokemon, 0, len(src.pokemonRows))
-	for _, row := range src.pokemonRows {
-		if _, excluded := src.megaIDs[row.ID]; excluded {
+	pokemons := make([]entity.Pokemon, 0, len(src.PokemonRows))
+	for _, row := range src.PokemonRows {
+		if _, excluded := src.MegaIDs[row.ID]; excluded {
 			continue
 		}
 		// Source rows with non-positive weight cannot satisfy CHECK (weight > 0).
@@ -80,9 +81,9 @@ func transformPokemon(src pokemonStrategySource) ([]entity.Pokemon, error) {
 			PokeapiID:    row.ID,
 			Slug:         row.Identifier,
 			DisplayName:  caser.String(strings.ReplaceAll(row.Identifier, "-", " ")),
-			Stats:        src.stats[row.ID],
-			TypeSlots:    src.types[row.ID],
-			AbilitySlots: src.abilities[row.ID],
+			Stats:        src.Stats[row.ID],
+			TypeSlots:    src.Types[row.ID],
+			AbilitySlots: src.Abilities[row.ID],
 			Weight:       float64(row.Weight) / 10,
 			FixedGender:  pokemonFixedGender(row.Identifier, src.fixedGenderBySpecies[row.SpeciesID]),
 		}
@@ -155,7 +156,7 @@ func loadPokemon(db *sql.DB, pokemons []entity.Pokemon) error {
 		weight = EXCLUDED.weight,
 		fixed_gender = EXCLUDED.fixed_gender`
 
-	return inTx(db, func(tx *sql.Tx) error {
+	return common.InTx(db, func(tx *sql.Tx) error {
 		for _, pokemon := range pokemons {
 			_, err := tx.Exec(query,
 				pokemon.PokeapiID, pokemon.Slug, pokemon.DisplayName, pokemon.Primary, pokemon.Secondary,

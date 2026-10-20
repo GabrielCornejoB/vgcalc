@@ -6,6 +6,7 @@ import (
 
 	"vgcalc/etl/internal/csv"
 	"vgcalc/etl/internal/entity"
+	"vgcalc/etl/internal/etl/common"
 )
 
 type ItemStrategy struct {
@@ -80,13 +81,13 @@ func (s ItemStrategy) extract() (itemSource, error) {
 
 	src.names = make(map[int]string, len(nameRows))
 	for _, row := range nameRows {
-		if row.LocalLanguageID == pokeapiLanguageID {
+		if row.LocalLanguageID == common.PokeapiLanguageID {
 			src.names[row.ItemID] = row.Name
 		}
 	}
 	src.prose = make(map[int]itemProseCSVRow, len(proseRows))
 	for _, row := range proseRows {
-		if row.LocalLanguageID == pokeapiLanguageID {
+		if row.LocalLanguageID == common.PokeapiLanguageID {
 			src.prose[row.ItemID] = row
 		}
 	}
@@ -135,7 +136,7 @@ func loadItems(db *sql.DB, items []entity.Item) error {
 		effect = EXCLUDED.effect,
 		fling_power = EXCLUDED.fling_power`
 
-	return inTx(db, func(tx *sql.Tx) error {
+	return common.InTx(db, func(tx *sql.Tx) error {
 		for _, item := range items {
 			_, err := tx.Exec(query,
 				item.PokeapiID, item.Slug, item.DisplayName,
