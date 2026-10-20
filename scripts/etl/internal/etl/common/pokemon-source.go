@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"vgcalc/etl/internal/csv"
-	"vgcalc/etl/internal/entity"
+	"vgcalc/etl/internal/etl/entity"
 )
 
 // Row structs for the pokemon*.csv family, shared by every strategy that

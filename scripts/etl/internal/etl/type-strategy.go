@@ -7,8 +7,8 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"vgcalc/etl/internal/csv"
-	"vgcalc/etl/internal/entity"
 	"vgcalc/etl/internal/etl/common"
+	"vgcalc/etl/internal/etl/entity"
 )
 
 type TypeStrategy struct {
