@@ -49,6 +49,7 @@ Source of truth for data: `docs/relational-model.md`. Background: `reference-rep
 - REST contract: per-entity sections for all DB tables, pagination/error
   envelope, OpenAPI spec (later phase — no code, no endpoint specs now).
 - Login methods (email/OAuth/magic-link), curator role (v1 = admin-only).
+- `scripts/etl` README / run instructions (ETL itself is done).
 
 ## Architecture diagram
 

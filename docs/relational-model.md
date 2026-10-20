@@ -48,7 +48,7 @@ One row per battle-distinct, non-mega, non-primal variant.
 | `id` | SERIAL PK | DB-generated surrogate. ETL omits it, Postgres assigns incrementally. Never `pokemon.id`. | — |
 | `pokeapi_id` | int UNIQUE NOT NULL | Original source ID, distinct from `id`. ETL join key back to `pokemon.csv`. | `pokemon.id` |
 | `slug` | text UNIQUE | URL-safe key, e.g. `arcanine-hisui`, `indeedee-female`, `floette-eternal`, `charizard`. | `pokemon.identifier` |
-| `display_name` | text | Human name, e.g. `Hisuian Arcanine`. | Manual — no per-variety EN source (names live at species level) |
+| `display_name` | text | Human name, e.g. `Hisuian Arcanine`. | Manual — no per-variety EN source (names live at species level). Until curated, the ETL writes the title-cased slug as a placeholder. |
 | `primary_type_id` | FK -> `types.id` | | `pokemon_types` slot 1 → `types.id` |
 | `secondary_type_id` | FK -> `types.id`, NULL | Max 2 verified. | `pokemon_types` slot 2 |
 | `hp, atk, def, spa, spd, spe` | int ×6 | Base stats (level-free). | `pokemon_stats` `stat_id` 1–6 pivot |
@@ -182,7 +182,7 @@ as booleans, multihit as two nullable ints — no extra joins per move.
 | `priority` | int | Default 0. | `moves.priority` |
 | `target` | enum (text) | Inlined, **no table**. E.g. `selected-pokemon`, `all-opponents`, `all-other-pokemon`, `user`, `entire-field`. Drives doubles spread. | `move_targets.identifier` via `moves.target_id` |
 | `is_contact, is_punch, is_bite, is_sound, is_pulse, is_bullet` | bool, default false | `protect/mirror/...` dropped. | `move_flag_map` (`ballistics→is_bullet`) |
-| `is_slicing, is_wind` | bool, default false | | Manual overlay — no PokeAPI source (`ceaseless-edge`, `psyblade` have empty flag maps; calc adds by hand) |
+| `is_slicing, is_wind` | bool, default false | | Manual overlay, outside the ETL — no PokeAPI source (`ceaseless-edge`, `psyblade` have empty flag maps; calc adds by hand). The ETL leaves both `false`. |
 | `min_hits, max_hits` | int NULL ×2 | Both `NULL` = 1 hit; `2/2` fixed; `2/5` variable. | `move_meta.min_hits/max_hits` |
 
 Dropped: contest fields, `effect_chance` / ailment numbers (code later), `generation_id`.
@@ -217,8 +217,8 @@ global-mutable for moves (see above).
 
 | Table | Columns | PokeAPI source |
 |---|---|---|
-| `regulations` | `id` SERIAL PK (ETL omits it), `slug` UK (e.g. `reg-m-a`, `reg-m-c`), `display_name`, `is_current` bool (exactly one TRUE) | Manual — mirrors `ps` `champions` vs `championsregma` mods. No `pokeapi_id` (no source ID). |
-| `regulation_pokemon` | `regulation_id` FK + `pokemon_id` FK, PK both | Manual curation; starting inputs: `ps` formats-data tiers + PokeAPI pokedex `36 champions` (see below). `pokemon_moves` VG32 distinct `pokemon_id`s is a weaker proxy. No `pokeapi_id` (join of manual + surrogate FKs). |
+| `regulations` | `id` SERIAL PK, `slug` UK (e.g. `reg-m-a`, `reg-m-c`), `display_name`, `is_current` bool (exactly one TRUE) | Manual, not seeded by the ETL — mirrors `ps` `champions` vs `championsregma` mods. No `pokeapi_id` (no source ID). |
+| `regulation_pokemon` | `regulation_id` FK + `pokemon_id` FK, PK both | Manual curation, not seeded by the ETL; starting inputs: `ps` formats-data tiers + PokeAPI pokedex `36 champions` (see below). `pokemon_moves` VG32 distinct `pokemon_id`s is a weaker proxy. No `pokeapi_id` (join of manual + surrogate FKs). |
 
 Runtime queries filter `regulation_pokemon WHERE regulation_id = (current)`.
 M-A→M-C→M-A restores the set with no re-curation. Diffs (`in M-A not M-C`)
@@ -280,8 +280,9 @@ once in `mega_evolution.required_item_id` (join, not duplicated flag).
 Dropped: `cost` (shop), `fling_effect_id` (thrown-move side effects, code later
 if Fling ever matters), `machines` (TM mapping), `pokemon_items` (wild holders),
 prices / game indices / sprites / flavor text (per-game bloat).
-Seed = Mega Stones for legal megas + competitive hold items only (~60 rows),
-not the full dex (no balls/medicine/key items).
+Seed = full PokeAPI `items.csv` (no allowlist in ETL code, see decision 10).
+Competitive scoping (Mega Stones for legal megas + hold items) is a later
+data-driven curation step, never ETL code.
 
 ## Pending, deferred & open decisions
 
@@ -295,21 +296,27 @@ for now, listed so nothing is lost:
 2. **Instance validation rules (deferred with `team_instance`).** Ability ∈ the
    row's 3; moves ∈ `pokemon_moves`; mega needs stone + base; item/moves/nature
    legal. No constraints for these in base tables yet.
-3. **Manual seed overlays.** Variety `display_name`s (no per-variety EN source);
-   `is_slicing`/`is_wind`; Rayquaza `required_move_id`;
-   `regulations` + `regulation_pokemon` curation. (`fixed_gender` removed from
-   this list — fully derived from slug suffix + `gender_rate`, see `pokemon`.)
+3. **Manual data, outside the ETL (decided).** None of this is seeded from a
+   data source, the ETL does not produce it, and it is added by hand later:
+   `regulations` + `regulation_pokemon` curation, `moves.is_slicing` /
+   `is_wind` (the ETL leaves both `false`), and variety `display_name`s (the
+   ETL writes the title-cased slug as a placeholder, e.g. `Arcanine Hisui`
+   instead of `Hisuian Arcanine`). The Rayquaza `required_move_id` is the
+   exception: the ETL pins it through explicit constants. (`fixed_gender` is
+   fully derived from slug suffix + `gender_rate`, see `pokemon`.)
 4. **Units — decided: KG.** `weight` stored in KG (`pokemon.weight / 10`).
 5. **`is_current` exactly-one invariant.** Needs enforcement (partial unique
    index or app check) — declared, not enforced.
 6. **Move-level bans unrepresentable (by decision).** See `pokemon_moves` —
    deleting a row is global across regs.
-7. **Seed scope — decided: Champions-legal `pokemon` only.** First migration
-   imports only Champions-legal pokémon, not the full dex. *Currently not the
-   case:* `PokemonStrategy` seeds every non-mega/primal row (1,251) and
-   legality is meant to come from `regulation_pokemon`; revisit whether to
-   filter the seed by pokedex `36` instead. `moves`: VG32
-   collapse agreed. `items`: ~60 competitive rows agreed.
+7. **Seed scope — decided: full dex in the base tables, legality is a query
+   filter.** The ETL seeds every non-mega/primal `pokemon` row (1,251),
+   every `moves` / `abilities` / `items` / `natures` row, and the Champions
+   `pokemon_moves` slice (VG32 collapse). It does not filter by pokedex `36`
+   or by any competitive list. Champions legality lives only in
+   `regulation_pokemon`, which is curated manually later (not by the ETL), so
+   once the regulation lists exist, runtime queries return only Champions-legal
+   data through `regulation_pokemon WHERE regulation_id = (current)`.
 8. **Dropped knowingly.** Sprites/icons (UI later); field/weather/terrain
    (battle runtime, not data tables); `fling_effect_id`, `effect_chance` /
    ailments (code later); contest/pocket/price/holder metadata;

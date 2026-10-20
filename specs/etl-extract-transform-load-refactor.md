@@ -314,10 +314,7 @@ Done (commits on `feature/etl`):
 | 4 | pokemon + shared source | `reshape pokemon strategy into extract, transform, load` |
 | 5 | mega_evolution | `reshape mega evolution strategy into extract, transform, load` |
 
-Remaining, in the order they must be executed:
-
-| Order | Strategy | Depends on (code) | Depends on (DB rows at run time) | Notes |
-|---|---|---|---|---|
+Remaining: none. All strategies are done.
 
 Run-time DB order (unchanged, `main.go`): type → type_efficacy → ability →
 nature → item → move → pokemon → mega_evolution → pokemon_moves. A refactor
