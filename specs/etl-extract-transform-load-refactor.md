@@ -1,9 +1,9 @@
 # Spec — ETL extract / transform / load refactor (all strategies)
 
 Status: **IN PROGRESS** (2026-10-20). All decisions in §6 are closed.
-Done: §4 steps 1 and 2, and 8 of the 9 strategies (ability, type, nature, item,
-type_efficacy, move, pokemon_moves, pokemon; see §3.1–3.8). Remaining:
-mega_evolution (see §4.1 for the order and dependencies).
+Done: §4 steps 1 and 2, and all 9 strategies (ability, type, nature, item,
+type_efficacy, move, pokemon_moves, pokemon, mega_evolution; see §3.1–3.9).
+Remaining: final verification (§4.1 order 1) (see §4.1 for the order and dependencies).
 
 ## Handoff (read this first)
 
@@ -13,7 +13,7 @@ finished ones are in §3.1–3.5. Nothing is pushed.
 - **Reference implementation:** `scripts/etl/internal/etl/ability-strategy.go`
   and `scripts/etl/internal/entity/ability.go`. Copy their shape for every
   other strategy (§2.1 conventions).
-- **Next step:** `mega_evolution` strategy, then follow the order in §4.1.
+- **Next step:** final verification (§4.1), full DB reset and diff of all 9 tables.
 - **Snapshots** (§5) were taken before step 1 and live in the session
   scratchpad (`before/<table>.tsv`, ordered by `pokeapi_id`, junction tables by
   their composite PK). They are not in the repo; retake them from a pre-refactor
@@ -259,6 +259,22 @@ Done in the pilot, see §7. `entity.Ability`, `abilitySource{abilityRows, names,
 - Verified: `pokemon` blanked, ETL rerun; `pokemon` (1251), `mega_evolution`
   (90) and `pokemon_moves` identical.
 
+### 3.9 mega_evolution
+
+- `entity/mega-evolution.go`: `entity.MegaEvolution` embeds `Stats` and
+  `TypeSlots`; `Validate()` mirrors the DB CHECKs (exactly one of item/move,
+  stats ≥ 1, weight > 0, base/ability/primary type set).
+- `mega-evolution-strategy.go`: `megaEvolutionSource` embeds `pokemonSource`
+  plus `itemIDByMega`, `basePokemonIDBySpecies` (only species whose base is in
+  `vgcalc.pokemon`) and `dragonAscentMoveID`. Trigger items are now resolved in
+  extract for every mega/primal, not only kept ones; no new error occurred.
+  `transformMegaEvolutions` skips megas without a slot-1 ability, errors on
+  slot 2/hidden abilities or a missing base. The error message for a base
+  missing from `vgcalc.pokemon` is now "no base pokemon for species_id=…".
+  `loadInputs`, `buildMegaEvolutions`, `slot1Abilities` and `applyMega*` are gone.
+- Verified: `mega_evolution` blanked, ETL rerun; 90 rows identical, plus
+  `pokemon`, `moves`, `pokemon_moves`.
+
 ### Verification of 3.1–3.5
 
 `gofmt` / `go vet` clean after each. For each, the table's non-key columns were
@@ -296,13 +312,13 @@ Done (commits on `feature/etl`):
 | 3f | move | `reshape move strategy into extract, transform, load` |
 | 3g | pokemon_moves | `reshape pokemon moves strategy into extract, transform, load` |
 | 4 | pokemon + shared source | `reshape pokemon strategy into extract, transform, load` |
+| 5 | mega_evolution | `reshape mega evolution strategy into extract, transform, load` |
 
 Remaining, in the order they must be executed:
 
 | Order | Strategy | Depends on (code) | Depends on (DB rows at run time) | Notes |
 |---|---|---|---|---|
-| 1 | **mega_evolution** | `pokemon-source.go` (done) | `types`, `abilities`, `items`, `moves`, `pokemon` | Last. `pokemon-rows.go` is already deleted. Needs `itemIDByMega`, `basePokemonIDBySpecies` and `dragonAscentMoveID` extras. |
-| 2 | Final verification + spec update (§4 step 6) | all above | — | Reset DB, full `go run .`, diff all 9 tables, check expected counts (§5.4). |
+| 1 | Final verification + spec update (§4 step 6) | all above | — | Reset DB, full `go run .`, diff all 9 tables, check expected counts (§5.4). |
 
 Run-time DB order (unchanged, `main.go`): type → type_efficacy → ability →
 nature → item → move → pokemon → mega_evolution → pokemon_moves. A refactor
