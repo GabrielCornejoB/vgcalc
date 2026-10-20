@@ -117,11 +117,7 @@ func transformAbilities(src abilitySource) ([]entity.Ability, error) {
 func loadAbilities(db *sql.DB, abilities []entity.Ability) error {
 	const query = `INSERT INTO vgcalc.abilities (pokeapi_id, slug, display_name, short_effect, effect)
 	VALUES ($1, $2, $3, $4, $5)
-	ON CONFLICT (pokeapi_id) DO UPDATE SET
-		slug = EXCLUDED.slug,
-		display_name = EXCLUDED.display_name,
-		short_effect = EXCLUDED.short_effect,
-		effect = EXCLUDED.effect`
+	ON CONFLICT (pokeapi_id) DO NOTHING`
 
 	return common.InTx(db, func(tx *sql.Tx) error {
 		for _, ability := range abilities {

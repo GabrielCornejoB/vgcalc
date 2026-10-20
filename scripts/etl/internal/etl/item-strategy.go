@@ -129,12 +129,7 @@ func transformItems(src itemSource) ([]entity.Item, error) {
 func loadItems(db *sql.DB, items []entity.Item) error {
 	const query = `INSERT INTO vgcalc.items (pokeapi_id, slug, display_name, short_effect, effect, fling_power)
 	VALUES ($1, $2, $3, $4, $5, $6)
-	ON CONFLICT (pokeapi_id) DO UPDATE SET
-		slug = EXCLUDED.slug,
-		display_name = EXCLUDED.display_name,
-		short_effect = EXCLUDED.short_effect,
-		effect = EXCLUDED.effect,
-		fling_power = EXCLUDED.fling_power`
+	ON CONFLICT (pokeapi_id) DO NOTHING`
 
 	return common.InTx(db, func(tx *sql.Tx) error {
 		for _, item := range items {

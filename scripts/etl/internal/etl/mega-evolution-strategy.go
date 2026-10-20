@@ -243,21 +243,7 @@ func loadMegaEvolutions(db *sql.DB, megas []entity.MegaEvolution) error {
 		hp, atk, def, spa, spd, spe, weight
 	)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-	ON CONFLICT (pokeapi_id) DO UPDATE SET
-		base_pokemon_id = EXCLUDED.base_pokemon_id,
-		slug = EXCLUDED.slug,
-		required_item_id = EXCLUDED.required_item_id,
-		required_move_id = EXCLUDED.required_move_id,
-		ability_id = EXCLUDED.ability_id,
-		primary_type_id = EXCLUDED.primary_type_id,
-		secondary_type_id = EXCLUDED.secondary_type_id,
-		hp = EXCLUDED.hp,
-		atk = EXCLUDED.atk,
-		def = EXCLUDED.def,
-		spa = EXCLUDED.spa,
-		spd = EXCLUDED.spd,
-		spe = EXCLUDED.spe,
-		weight = EXCLUDED.weight`
+	ON CONFLICT (pokeapi_id) DO NOTHING`
 
 	return common.InTx(db, func(tx *sql.Tx) error {
 		for _, mega := range megas {

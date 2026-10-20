@@ -6,6 +6,9 @@ Source of truth for data: `docs/relational-model.md`. Background: `reference-rep
 ## Decisions
 
 1. **Language:** TypeScript everywhere for deployed code (API + future frontend). Node 22+ LTS. Exception: manual one-time init/ETL scripts run locally by the operator and never deployed (e.g. PokeAPI CSV → SQL seed) may use Go.
+   The ETL is insert-only (`ON CONFLICT DO NOTHING`): after seeding, the DB is
+   the source of truth and re-runs never overwrite curated rows (see
+   `relational-model.md` decision 11).
 2. **Repo:** Single GitHub repo, plain layout — no Turborepo/Nx.
    `apps/backend/` now, `apps/frontend/` later. `npm` (jobs familiarity).
 3. **Frontend (later, reserved):** Next.js on Vercel project #1. Public access.

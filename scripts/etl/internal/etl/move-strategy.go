@@ -234,28 +234,7 @@ func loadMoves(db *sql.DB, moves []entity.Move) error {
 		$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
 		$13, $14, $15, $16, $17, $18, $19, $20, $21, $22
 	)
-	ON CONFLICT (pokeapi_id) DO UPDATE SET
-		slug = EXCLUDED.slug,
-		display_name = EXCLUDED.display_name,
-		short_effect = EXCLUDED.short_effect,
-		effect = EXCLUDED.effect,
-		type_id = EXCLUDED.type_id,
-		category = EXCLUDED.category,
-		power = EXCLUDED.power,
-		accuracy = EXCLUDED.accuracy,
-		pp = EXCLUDED.pp,
-		priority = EXCLUDED.priority,
-		target = EXCLUDED.target,
-		is_contact = EXCLUDED.is_contact,
-		is_punch = EXCLUDED.is_punch,
-		is_bite = EXCLUDED.is_bite,
-		is_sound = EXCLUDED.is_sound,
-		is_pulse = EXCLUDED.is_pulse,
-		is_bullet = EXCLUDED.is_bullet,
-		is_slicing = EXCLUDED.is_slicing,
-		is_wind = EXCLUDED.is_wind,
-		min_hits = EXCLUDED.min_hits,
-		max_hits = EXCLUDED.max_hits`
+	ON CONFLICT (pokeapi_id) DO NOTHING`
 
 	return common.InTx(db, func(tx *sql.Tx) error {
 		for _, move := range moves {

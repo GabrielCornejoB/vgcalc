@@ -71,7 +71,7 @@ func transformTypes(src typeSource) ([]entity.Type, error) {
 
 func loadTypes(db *sql.DB, pokemonTypes []entity.Type) error {
 	const query = `INSERT INTO vgcalc.types (pokeapi_id, slug, display_name) VALUES ($1, $2, $3)
-	ON CONFLICT (pokeapi_id) DO UPDATE SET slug = EXCLUDED.slug, display_name = EXCLUDED.display_name`
+	ON CONFLICT (pokeapi_id) DO NOTHING`
 
 	return common.InTx(db, func(tx *sql.Tx) error {
 		for _, pokemonType := range pokemonTypes {

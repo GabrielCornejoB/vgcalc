@@ -139,22 +139,7 @@ func loadPokemon(db *sql.DB, pokemons []entity.Pokemon) error {
 		ability1_id, ability2_id, hidden_ability_id, weight, fixed_gender
 	)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-	ON CONFLICT (pokeapi_id) DO UPDATE SET
-		slug = EXCLUDED.slug,
-		display_name = EXCLUDED.display_name,
-		primary_type_id = EXCLUDED.primary_type_id,
-		secondary_type_id = EXCLUDED.secondary_type_id,
-		hp = EXCLUDED.hp,
-		atk = EXCLUDED.atk,
-		def = EXCLUDED.def,
-		spa = EXCLUDED.spa,
-		spd = EXCLUDED.spd,
-		spe = EXCLUDED.spe,
-		ability1_id = EXCLUDED.ability1_id,
-		ability2_id = EXCLUDED.ability2_id,
-		hidden_ability_id = EXCLUDED.hidden_ability_id,
-		weight = EXCLUDED.weight,
-		fixed_gender = EXCLUDED.fixed_gender`
+	ON CONFLICT (pokeapi_id) DO NOTHING`
 
 	return common.InTx(db, func(tx *sql.Tx) error {
 		for _, pokemon := range pokemons {

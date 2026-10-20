@@ -331,6 +331,16 @@ for now, listed so nothing is lost:
     slugs are resolved generically (first/lowest `pokeapi_id` wins, e.g.
     `roseli-berry` 723 vs 2279, which carry identical data in our columns) —
     no per-row exceptions.
+11. **ETL loads are insert-only; the DB is the source of truth (decided).**
+    The ETL is a one-time bootstrap (re-run only occasionally, e.g. to pick up
+    new PokeAPI rows). Every load uses `ON CONFLICT (...) DO NOTHING`, never
+    `DO UPDATE`: a re-run inserts rows that are new in the source and leaves
+    existing rows untouched. Reason: after seeding, rows are curated by hand
+    (placeholder `display_name`s replaced, `is_slicing` / `is_wind` set, bad
+    source values fixed), and an upsert would silently overwrite that work with
+    PokeAPI values. Trade-off: upstream PokeAPI corrections to existing rows are
+    no longer applied automatically; they go through manual curation (or a
+    restore from a DB export) instead, never ETL code.
 
 ## Diagram (current state, structural only)
 

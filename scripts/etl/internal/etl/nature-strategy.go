@@ -114,11 +114,7 @@ func transformNatures(src natureSource) ([]entity.Nature, error) {
 func loadNatures(db *sql.DB, natures []entity.Nature) error {
 	const query = `INSERT INTO vgcalc.natures (pokeapi_id, slug, display_name, plus_stat, minus_stat)
 	VALUES ($1, $2, $3, $4, $5)
-	ON CONFLICT (pokeapi_id) DO UPDATE SET
-		slug = EXCLUDED.slug,
-		display_name = EXCLUDED.display_name,
-		plus_stat = EXCLUDED.plus_stat,
-		minus_stat = EXCLUDED.minus_stat`
+	ON CONFLICT (pokeapi_id) DO NOTHING`
 
 	return common.InTx(db, func(tx *sql.Tx) error {
 		for _, nature := range natures {

@@ -83,7 +83,7 @@ func transformTypeEfficacies(src typeEfficacySource) ([]entity.TypeEfficacy, err
 
 func loadTypeEfficacies(db *sql.DB, typeEfficacies []entity.TypeEfficacy) error {
 	const query = `INSERT INTO vgcalc.type_efficacy (attack_type_id, target_type_id, multiplier) VALUES ($1, $2, $3)
-	ON CONFLICT (attack_type_id, target_type_id) DO UPDATE SET multiplier = EXCLUDED.multiplier`
+	ON CONFLICT (attack_type_id, target_type_id) DO NOTHING`
 
 	return common.InTx(db, func(tx *sql.Tx) error {
 		for _, typeEfficacy := range typeEfficacies {
