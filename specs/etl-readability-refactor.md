@@ -1,7 +1,8 @@
 # Spec — ETL readability refactor (pokemon_moves first, then all strategies)
 
-Status: **Phase 1, S1, S2, S3, S4, S5 implemented** (2026-10-18/20). S7, S8, S9
-pending approval. S6 revised: row structs used by a single strategy stay in
+Status: **FINISHED** (2026-10-20). Phase 1, S1, S2, S3, S4, S5 implemented.
+S7, S8, S9 were deliberately **not implemented** by decision of the user; there
+is nothing left to do in this spec. S6 revised: row structs used by a single strategy stay in
 that strategy's file; `pokemon-rows.go` holds only shared ones. S10 dropped
 (the golang-guidelines skill has no file naming rule).
 
@@ -31,10 +32,9 @@ until pushed. All 9 strategies are registered in `scripts/etl/main.go`.
 3. Expected counts: `pokemon` 1251, `mega_evolution` 90, `pokemon_moves`
    14,752, `moves` 937. A pure refactor must not change them.
 
-**Remaining work, in suggested order**
-- S7 naming of id maps / `slot1s`: only if done across all strategies.
-- S8 (`isEnglish` helper) and S9 (fold mega slot-1 ability into build):
-  recommended to skip.
+**Remaining work: none. Spec closed.**
+- S7 (naming of id maps / `slot1s`), S8 (`isEnglish` helper) and S9 (fold mega
+  slot-1 ability into build) are dropped; do not implement them.
 - Not part of this refactor, deferred by the user: seed scope (filter
   `pokemon` by pokedex 36 or not), Showdown Champions-mod overlay for
   Champions-specific move changes (e.g. Dire Claw 30% vs 50%), stale rows on
