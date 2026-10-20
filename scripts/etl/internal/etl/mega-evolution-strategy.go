@@ -47,74 +47,93 @@ func NewMegaEvolutionStrategy(db *sql.DB, dataDir string) MegaEvolutionStrategy 
 	}
 }
 
+// megaEvolutionInputs is everything Run needs from disk and the DB:
+// the source CSV rows plus the pokeapi_id -> surrogate id maps.
+type megaEvolutionInputs struct {
+	pokemonRows   []PokemonCSVRow
+	formRows      []PokemonFormCSVRow
+	conditionRows []megaFormConditionCSVRow
+	statRows      []PokemonStatCSVRow
+	typeRows      []PokemonTypeCSVRow
+	abilityRows   []PokemonAbilityCSVRow
+
+	typesMap     map[int]int
+	abilitiesMap map[int]int
+	itemsMap     map[int]int
+	pokemonMap   map[int]int
+	movesMap     map[int]int
+}
+
 func (s MegaEvolutionStrategy) Run() error {
-	pokemonRows, err := csv.LoadFile[PokemonCSVRow](s.pokemonCSVPath)
-	if err != nil {
-		return err
-	}
-	formRows, err := csv.LoadFile[PokemonFormCSVRow](s.pokemonFormsCSVPath)
-	if err != nil {
-		return err
-	}
-	conditionRows, err := csv.LoadFile[megaFormConditionCSVRow](s.formConditionsCSVPath)
-	if err != nil {
-		return err
-	}
-	statRows, err := csv.LoadFile[PokemonStatCSVRow](s.pokemonStatsCSVPath)
-	if err != nil {
-		return err
-	}
-	typeRows, err := csv.LoadFile[PokemonTypeCSVRow](s.pokemonTypesCSVPath)
-	if err != nil {
-		return err
-	}
-	abilityRows, err := csv.LoadFile[PokemonAbilityCSVRow](s.pokemonAbilitiesCSVPath)
+	in, err := s.loadInputs()
 	if err != nil {
 		return err
 	}
 
-	typesMap, err := loadPokeapiIDMap(s.DB, vgcalcTypes)
-	if err != nil {
-		return err
-	}
-	abilitiesMap, err := loadPokeapiIDMap(s.DB, vgcalcAbilities)
-	if err != nil {
-		return err
-	}
-	itemsMap, err := loadPokeapiIDMap(s.DB, vgcalcItems)
-	if err != nil {
-		return err
-	}
-	pokemonMap, err := loadPokeapiIDMap(s.DB, vgcalcPokemon)
-	if err != nil {
-		return err
-	}
-	movesMap, err := loadPokeapiIDMap(s.DB, vgcalcMoves)
+	megaEvolutionIDs := megaEvolutionPokemonIDs(in.formRows)
+	triggers := megaTriggers(in.formRows, in.conditionRows)
+	slot1s := slot1Abilities(in.abilityRows)
+	bases := basePokemonBySpecies(in.pokemonRows, megaEvolutionIDs)
+
+	megas, megasMap, err := buildMegaEvolutions(
+		in.pokemonRows, triggers, slot1s, bases, in.pokemonMap, in.itemsMap, in.movesMap)
 	if err != nil {
 		return err
 	}
 
-	megaEvolutionIDs := megaEvolutionPokemonIDs(formRows)
-	triggers := megaTriggers(formRows, conditionRows)
-	slot1s := slot1Abilities(abilityRows)
-	bases := basePokemonBySpecies(pokemonRows, megaEvolutionIDs)
-
-	megas, megasMap, err := buildMegaEvolutions(pokemonRows, triggers, slot1s, bases, pokemonMap, itemsMap, movesMap)
-	if err != nil {
+	if err := applyMegaStats(in.statRows, megas, megasMap); err != nil {
 		return err
 	}
-
-	if err := applyMegaStats(statRows, megas, megasMap); err != nil {
+	if err := applyMegaTypes(in.typeRows, megas, megasMap, in.typesMap); err != nil {
 		return err
 	}
-	if err := applyMegaTypes(typeRows, megas, megasMap, typesMap); err != nil {
-		return err
-	}
-	if err := applyMegaAbilities(abilityRows, megas, megasMap, abilitiesMap); err != nil {
+	if err := applyMegaAbilities(in.abilityRows, megas, megasMap, in.abilitiesMap); err != nil {
 		return err
 	}
 
 	return upsertMegaEvolutions(s.DB, megas)
+}
+
+func (s MegaEvolutionStrategy) loadInputs() (megaEvolutionInputs, error) {
+	var in megaEvolutionInputs
+	var err error
+
+	if in.pokemonRows, err = csv.LoadFile[PokemonCSVRow](s.pokemonCSVPath); err != nil {
+		return in, err
+	}
+	if in.formRows, err = csv.LoadFile[PokemonFormCSVRow](s.pokemonFormsCSVPath); err != nil {
+		return in, err
+	}
+	if in.conditionRows, err = csv.LoadFile[megaFormConditionCSVRow](s.formConditionsCSVPath); err != nil {
+		return in, err
+	}
+	if in.statRows, err = csv.LoadFile[PokemonStatCSVRow](s.pokemonStatsCSVPath); err != nil {
+		return in, err
+	}
+	if in.typeRows, err = csv.LoadFile[PokemonTypeCSVRow](s.pokemonTypesCSVPath); err != nil {
+		return in, err
+	}
+	if in.abilityRows, err = csv.LoadFile[PokemonAbilityCSVRow](s.pokemonAbilitiesCSVPath); err != nil {
+		return in, err
+	}
+
+	if in.typesMap, err = loadPokeapiIDMap(s.DB, vgcalcTypes); err != nil {
+		return in, err
+	}
+	if in.abilitiesMap, err = loadPokeapiIDMap(s.DB, vgcalcAbilities); err != nil {
+		return in, err
+	}
+	if in.itemsMap, err = loadPokeapiIDMap(s.DB, vgcalcItems); err != nil {
+		return in, err
+	}
+	if in.pokemonMap, err = loadPokeapiIDMap(s.DB, vgcalcPokemon); err != nil {
+		return in, err
+	}
+	if in.movesMap, err = loadPokeapiIDMap(s.DB, vgcalcMoves); err != nil {
+		return in, err
+	}
+
+	return in, nil
 }
 
 func upsertMegaEvolutions(db *sql.DB, megas []MegaEvolution) error {

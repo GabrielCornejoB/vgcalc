@@ -56,60 +56,74 @@ func NewPokemonStrategy(db *sql.DB, dataDir string) PokemonStrategy {
 	}
 }
 
+// pokemonInputs is everything Run needs from disk and the DB:
+// the source CSV rows plus the pokeapi_id -> surrogate id maps.
+type pokemonInputs struct {
+	pokemonRows []PokemonCSVRow
+	formRows    []PokemonFormCSVRow
+	speciesRows []pokemonSpeciesCSVRow
+	statRows    []PokemonStatCSVRow
+	typeRows    []PokemonTypeCSVRow
+	abilityRows []PokemonAbilityCSVRow
+
+	typesMap     map[int]int
+	abilitiesMap map[int]int
+}
+
 func (s PokemonStrategy) Run() error {
-	pokemonRows, err := csv.LoadFile[PokemonCSVRow](s.pokemonCSVPath)
+	in, err := s.loadInputs()
 	if err != nil {
 		return err
 	}
 
-	formRows, err := csv.LoadFile[PokemonFormCSVRow](s.pokemonFormsCSVPath)
-	if err != nil {
-		return err
-	}
-	megaIDs := megaEvolutionPokemonIDs(formRows)
+	megaIDs := megaEvolutionPokemonIDs(in.formRows)
+	speciesGenders := speciesFixedGenders(in.speciesRows)
+	pokemons, pokemonsMap := buildPokemon(in.pokemonRows, megaIDs, speciesGenders)
 
-	speciesRows, err := csv.LoadFile[pokemonSpeciesCSVRow](s.pokemonSpeciesCSVPath)
-	if err != nil {
+	if err := applyPokemonStats(in.statRows, pokemons, pokemonsMap); err != nil {
 		return err
 	}
-	speciesGenders := speciesFixedGenders(speciesRows)
-
-	pokemons, pokemonsMap := buildPokemon(pokemonRows, megaIDs, speciesGenders)
-
-	typesMap, err := loadPokeapiIDMap(s.DB, vgcalcTypes)
-	if err != nil {
+	if err := applyPokemonTypes(in.typeRows, pokemons, pokemonsMap, in.typesMap); err != nil {
 		return err
 	}
-	abilitiesMap, err := loadPokeapiIDMap(s.DB, vgcalcAbilities)
-	if err != nil {
-		return err
-	}
-
-	statRows, err := csv.LoadFile[PokemonStatCSVRow](s.pokemonStatsCSVPath)
-	if err != nil {
-		return err
-	}
-	if err := applyPokemonStats(statRows, pokemons, pokemonsMap); err != nil {
-		return err
-	}
-
-	typeRows, err := csv.LoadFile[PokemonTypeCSVRow](s.pokemonTypesCSVPath)
-	if err != nil {
-		return err
-	}
-	if err := applyPokemonTypes(typeRows, pokemons, pokemonsMap, typesMap); err != nil {
-		return err
-	}
-
-	abilityRows, err := csv.LoadFile[PokemonAbilityCSVRow](s.pokemonAbilitiesCSVPath)
-	if err != nil {
-		return err
-	}
-	if err := applyPokemonAbilities(abilityRows, pokemons, pokemonsMap, abilitiesMap); err != nil {
+	if err := applyPokemonAbilities(in.abilityRows, pokemons, pokemonsMap, in.abilitiesMap); err != nil {
 		return err
 	}
 
 	return upsertPokemon(s.DB, pokemons)
+}
+
+func (s PokemonStrategy) loadInputs() (pokemonInputs, error) {
+	var in pokemonInputs
+	var err error
+
+	if in.pokemonRows, err = csv.LoadFile[PokemonCSVRow](s.pokemonCSVPath); err != nil {
+		return in, err
+	}
+	if in.formRows, err = csv.LoadFile[PokemonFormCSVRow](s.pokemonFormsCSVPath); err != nil {
+		return in, err
+	}
+	if in.speciesRows, err = csv.LoadFile[pokemonSpeciesCSVRow](s.pokemonSpeciesCSVPath); err != nil {
+		return in, err
+	}
+	if in.statRows, err = csv.LoadFile[PokemonStatCSVRow](s.pokemonStatsCSVPath); err != nil {
+		return in, err
+	}
+	if in.typeRows, err = csv.LoadFile[PokemonTypeCSVRow](s.pokemonTypesCSVPath); err != nil {
+		return in, err
+	}
+	if in.abilityRows, err = csv.LoadFile[PokemonAbilityCSVRow](s.pokemonAbilitiesCSVPath); err != nil {
+		return in, err
+	}
+
+	if in.typesMap, err = loadPokeapiIDMap(s.DB, vgcalcTypes); err != nil {
+		return in, err
+	}
+	if in.abilitiesMap, err = loadPokeapiIDMap(s.DB, vgcalcAbilities); err != nil {
+		return in, err
+	}
+
+	return in, nil
 }
 
 func upsertPokemon(db *sql.DB, pokemons []Pokemon) error {
