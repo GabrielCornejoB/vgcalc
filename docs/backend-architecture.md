@@ -2,24 +2,29 @@
 
 Scope: internal layering of `apps/backend` (Express 5 + TS, Prisma, Postgres).
 Deployment, DB, auth and CI decisions live in `system-architecture.md`.
-Style: hexagonal / clean architecture with common industry names.
+Style: hexagonal (ports & adapters) with common industry names. The core
+(`domain/`, the hexagon) holds models, rules, use cases and ports; everything
+technology-specific is an adapter around it.
 
 ## Decisions
 
-1. **Layers (dependencies point inward only):**
+1. **Hexagon + adapters (dependencies point inward only):**
 
-   | Layer | Holds | May import |
+   | Zone | Holds | May import |
    |---|---|---|
-   | `domain/` | Domain models, ports (interfaces), domain errors, domain services | nothing (no express, prisma, zod) |
-   | `application/` | Use cases | `domain` |
-   | `adapters/inbound/` | HTTP entry point: routers, controllers, middlewares, request/response schemas, HTTP mappers | `application`, `domain` |
+   | `domain/` (hexagon) | Domain models, ports (interfaces), domain errors, domain services, use cases | nothing (no express, prisma, zod) |
+   | `adapters/inbound/` | HTTP entry point: routers, controllers, middlewares, request/response schemas, HTTP mappers | `domain` |
    | `adapters/outbound/` | Port implementations: repository adapters, DAOs, DB entities, mappers, external clients | `domain` |
    | `config/` | Typed env (zod-parsed once, fail fast) | — |
    | `main/` | Composition root + runtime entry points | everything |
 
-   Enforced by a lint rule in CI (`dependency-cruiser` or
+   Inside `domain/`, `models`, `ports`, `errors` and `services` never import
+   from `use-cases` (use cases sit on top of the rest of the core).
+   Both rules are enforced by a lint rule in CI (`dependency-cruiser` or
    `eslint-plugin-boundaries`), not by separate packages.
-2. **One class per domain entity per layer.** Each entity gets one router,
+   No inbound ports: controllers depend on use case classes directly (single
+   inbound adapter; tests fake use cases structurally).
+2. **One class per domain entity per role.** Each entity gets one router,
    controller, use case, port, repository adapter, DAO and mappers
    (e.g. `PokemonRouter → PokemonController → PokemonUseCase → PokemonRepository
    ◁ PokemonRepositoryAdapter → PokemonPrismaDao`).
@@ -85,7 +90,7 @@ Style: hexagonal / clean architecture with common industry names.
 - **Router** (`TeamRouter`) — endpoint signature only: path, method,
   middleware chain (auth, etc.), controller binding. Exposes a `router` property.
   No logic.
-- **Controller** (`TeamController`) — HTTP ⇄ application translation: zod-parse
+- **Controller** (`TeamController`) — HTTP ⇄ domain translation: zod-parse
   `params/query/body`, map to domain via `TeamHttpMapper`, call the use case,
   map result to response DTO, set status. No business logic.
 - **Middleware** (`RequireAdminMiddleware`, `ErrorHandlerMiddleware`, …) —
@@ -110,8 +115,7 @@ apps/backend/src/
 │   ├── models/          pokemon.ts, team.ts …               (interfaces)
 │   ├── ports/           pokemon-repository.ts …             (interfaces)
 │   ├── errors/          domain-error.ts, not-found-error.ts …
-│   └── services/        team-rules.service.ts, damage-calc.service.ts (later)
-├── application/
+│   ├── services/        team-rules.service.ts, damage-calc.service.ts (later)
 │   └── use-cases/       pokemon.use-case.ts, team.use-case.ts
 ├── adapters/
 │   ├── inbound/http/
@@ -188,10 +192,10 @@ export class TeamRulesService {
 }
 ```
 
-### Application
+### Domain — use case
 
 ```ts
-// application/use-cases/team.use-case.ts
+// domain/use-cases/team.use-case.ts
 export class TeamUseCase {
   readonly #teams: TeamRepository;
   readonly #regulations: RegulationRepository;
@@ -383,7 +387,7 @@ const prisma = createPrismaClient(env.DATABASE_URL);
 const teamRepository = new TeamRepositoryAdapter(prisma, new TeamPrismaDao(), new TeamPrismaMapper());
 const regulationRepository = new RegulationRepositoryAdapter(prisma, new RegulationPrismaDao(), new RegulationPrismaMapper());
 
-// application
+// domain
 const teamUseCase = new TeamUseCase(teamRepository, regulationRepository, new TeamRulesService());
 
 // inbound
