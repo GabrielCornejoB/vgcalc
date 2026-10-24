@@ -12,7 +12,7 @@ Style: hexagonal / clean architecture with common industry names.
    |---|---|---|
    | `domain/` | Domain models, ports (interfaces), domain errors, domain services | nothing (no express, prisma, zod) |
    | `application/` | Use cases | `domain` |
-   | `adapters/inbound/` | HTTP entry point: routers, handlers, middlewares, request/response schemas, HTTP mappers | `application`, `domain` |
+   | `adapters/inbound/` | HTTP entry point: routers, controllers, middlewares, request/response schemas, HTTP mappers | `application`, `domain` |
    | `adapters/outbound/` | Port implementations: repository adapters, DAOs, DB entities, mappers, external clients | `domain` |
    | `config/` | Typed env (zod-parsed once, fail fast) | — |
    | `main/` | Composition root + runtime entry points | everything |
@@ -20,11 +20,11 @@ Style: hexagonal / clean architecture with common industry names.
    Enforced by a lint rule in CI (`dependency-cruiser` or
    `eslint-plugin-boundaries`), not by separate packages.
 2. **One class per domain entity per layer.** Each entity gets one router,
-   handler, use case, port, repository adapter, DAO and mappers
-   (e.g. `PokemonRouter → PokemonHandler → PokemonUseCase → PokemonRepository
+   controller, use case, port, repository adapter, DAO and mappers
+   (e.g. `PokemonRouter → PokemonController → PokemonUseCase → PokemonRepository
    ◁ PokemonRepositoryAdapter → PokemonPrismaDao`).
 3. **Behavior = classes, data = interfaces.**
-   - Everything with behavior is a class: routers, handlers, middlewares,
+   - Everything with behavior is a class: routers, controllers, middlewares,
      use cases, domain services, repository adapters, DAOs, mappers, gateways.
      Behavior classes are stateless (no per-request data on `this`).
    - Pure data shapes are `interface`s with no methods: domain models, port
@@ -62,19 +62,19 @@ Style: hexagonal / clean architecture with common industry names.
    Mapper classes: `XPrismaMapper` (entity ⇄ domain) in
    `adapters/outbound/prisma/mappers`; `XHttpMapper` (request DTO → domain,
    domain → response DTO) in `adapters/inbound/http/mappers`.
-7. **Validation split.** Shape (types, required, formats) = zod in the handler
+7. **Validation split.** Shape (types, required, formats) = zod in the controller
    (keeps types inferred). Business rules (e.g. regulation legality) = domain
    services / use cases.
 8. **Errors.** Use cases throw domain errors (`NotFoundError`,
    `ValidationError`, `ConflictError` extending `DomainError`), never HTTP codes.
    `ErrorHandlerMiddleware` maps them to RFC 9457 `application/problem+json`
    (`type, title, status, detail, instance` + `errors[]` for zod failures).
-   Handlers have no try/catch (Express 5 forwards rejected promises).
+   Controllers have no try/catch (Express 5 forwards rejected promises).
 9. **Transactions** live in repository adapters (decision 5). A cross-repository
    `TransactionManager` port is added only if a use case ever needs to make
    several repositories atomic together.
 10. **Express callbacks are arrow-function properties.** Any method handed to
-    Express as a bare callback (handler endpoints, middleware `handle`) is
+    Express as a bare callback (controller endpoints, middleware `handle`) is
     declared as `name = async (req, res) => { … }` so `this` stays bound.
 11. **TS constraints** (`tsconfig`: `erasableSyntaxOnly`): no constructor
     parameter properties (assign `#private` fields explicitly), no `enum`
@@ -83,9 +83,9 @@ Style: hexagonal / clean architecture with common industry names.
 ## Class responsibilities
 
 - **Router** (`TeamRouter`) — endpoint signature only: path, method,
-  middleware chain (auth, etc.), handler binding. Exposes a `router` property.
+  middleware chain (auth, etc.), controller binding. Exposes a `router` property.
   No logic.
-- **Handler** (`TeamHandler`) — HTTP ⇄ application translation: zod-parse
+- **Controller** (`TeamController`) — HTTP ⇄ application translation: zod-parse
   `params/query/body`, map to domain via `TeamHttpMapper`, call the use case,
   map result to response DTO, set status. No business logic.
 - **Middleware** (`RequireAdminMiddleware`, `ErrorHandlerMiddleware`, …) —
@@ -116,7 +116,7 @@ apps/backend/src/
 ├── adapters/
 │   ├── inbound/http/
 │   │   ├── routers/     team.router.ts
-│   │   ├── handlers/    team.handler.ts
+│   │   ├── controllers/ team.controller.ts
 │   │   ├── schemas/     team.schemas.ts       (zod request schemas, response interfaces)
 │   │   ├── mappers/     team.http-mapper.ts   (request → domain, domain → response)
 │   │   ├── middlewares/ error-handler.middleware.ts, request-logger.middleware.ts,
@@ -139,9 +139,9 @@ apps/backend/src/
 ## Request flow
 
 ```
-HTTP → middlewares (logger, auth) → Router → Handler (zod parse → HttpMapper)
+HTTP → middlewares (logger, auth) → Router → Controller (zod parse → HttpMapper)
      → UseCase → Port ◁ RepositoryAdapter → PrismaDao → Postgres
-     ← DB entity → PrismaMapper → domain model → Handler → HttpMapper → res.json
+     ← DB entity → PrismaMapper → domain model → Controller → HttpMapper → res.json
      (any throw) → ErrorHandlerMiddleware → problem+json
 ```
 
@@ -307,8 +307,8 @@ export class TeamHttpMapper {
   }
 }
 
-// adapters/inbound/http/handlers/team.handler.ts
-export class TeamHandler {
+// adapters/inbound/http/controllers/team.controller.ts
+export class TeamController {
   readonly #teams: TeamUseCase;
   readonly #mapper: TeamHttpMapper;
 
@@ -343,9 +343,9 @@ export class TeamRouter {
   readonly basePath = '/api/v1/teams';
   readonly router: Router = Router();
 
-  constructor(handler: TeamHandler, requireAdmin: RequireAdminMiddleware) {
-    this.router.get('/:id', handler.getById);
-    this.router.post('/', requireAdmin.handle, handler.create);
+  constructor(controller: TeamController, requireAdmin: RequireAdminMiddleware) {
+    this.router.get('/:id', controller.getById);
+    this.router.post('/', requireAdmin.handle, controller.create);
   }
 }
 
@@ -388,10 +388,10 @@ const teamUseCase = new TeamUseCase(teamRepository, regulationRepository, new Te
 
 // inbound
 const requireAdmin = new RequireAdminMiddleware();
-const teamHandler = new TeamHandler(teamUseCase, new TeamHttpMapper());
+const teamController = new TeamController(teamUseCase, new TeamHttpMapper());
 
 export const httpApp = new HttpApp(
-  [new TeamRouter(teamHandler, requireAdmin)],
+  [new TeamRouter(teamController, requireAdmin)],
   new RequestLoggerMiddleware(),
   new NotFoundMiddleware(),
   new ErrorHandlerMiddleware(),
