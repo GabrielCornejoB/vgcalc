@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "esnext",
-    "module": "nodenext",
+    "module": "preserve",
     "rewriteRelativeImportExtensions": true,
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
@@ -9,8 +9,17 @@
     "strict": true,
     "skipLibCheck": true,
     "paths": {
-        "@models": ["src/domain/models/index.ts"],
-        "@ports": ["src/domain/ports/index.ts"]
-    }
+        "@models": ["./src/domain/models/index.ts"],
+        "@ports": ["./src/domain/ports/index.ts"],
+        "@use-cases": ["./src/domain/use-cases/index.ts"],
+        "@handlers": ["./src/inbound/http/handlers/index.ts"],
+        "@schemas": ["./src/inbound/http/schemas/index.ts"],
+        "@routers": ["./src/inbound/http/routers/index.ts"]
+    },
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "types": [
+      "node"
+    ]
   }
 }
