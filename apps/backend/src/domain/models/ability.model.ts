@@ -1,5 +1,5 @@
 export interface Ability {
-    pokeapiId: string | null;
+    pokeapiId: number | null;
     slug: string;
     displayName: string;
     shortEffect: string;
