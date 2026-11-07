@@ -12,9 +12,9 @@
         "@models": ["./src/domain/models/index.ts"],
         "@ports": ["./src/domain/ports/index.ts"],
         "@use-cases": ["./src/domain/use-cases/index.ts"],
-        "@handlers": ["./src/inbound/http/handlers/index.ts"],
-        "@schemas": ["./src/inbound/http/schemas/index.ts"],
-        "@routers": ["./src/inbound/http/routers/index.ts"]
+        "@handlers": ["./src/in/http/handlers/index.ts"],
+        "@schemas": ["./src/in/http/schemas/index.ts"],
+        "@routers": ["./src/in/http/routers/index.ts"]
     },
     "moduleResolution": "bundler",
     "resolveJsonModule": true,

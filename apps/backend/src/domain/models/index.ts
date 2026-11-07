@@ -1,2 +1,2 @@
 export * from './ability.model.ts';
-export * from './pagination.ts';
+export * from './pagination.model.ts';

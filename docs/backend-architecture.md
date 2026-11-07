@@ -13,8 +13,8 @@ technology-specific is an adapter around it.
    | Zone | Holds | May import |
    |---|---|---|
    | `domain/` (hexagon) | Domain models, ports (interfaces), domain errors, domain services, use cases | nothing (no express, prisma, zod) |
-   | `adapters/inbound/` | HTTP entry point: routers, controllers, middlewares, request/response schemas, HTTP mappers | `domain` |
-   | `adapters/outbound/` | Port implementations: repository adapters, DAOs, DB entities, mappers, external clients | `domain` |
+   | `in/` | HTTP entry point: routers, handlers, middlewares, request/response schemas, HTTP mappers | `domain` |
+   | `out/` | Port implementations: repository adapters, DAOs, DB entities, mappers, external clients | `domain` |
    | `config/` | Typed env (zod-parsed once, fail fast) | — |
    | `main/` | Composition root + runtime entry points | everything |
 
@@ -22,14 +22,14 @@ technology-specific is an adapter around it.
    from `use-cases` (use cases sit on top of the rest of the core).
    Both rules are enforced by a lint rule in CI (`dependency-cruiser` or
    `eslint-plugin-boundaries`), not by separate packages.
-   No inbound ports: controllers depend on use case classes directly (single
+   No inbound ports: handlers depend on use case classes directly (single
    inbound adapter; tests fake use cases structurally).
 2. **One class per domain entity per role.** Each entity gets one router,
-   controller, use case, port, repository adapter, DAO and mappers
-   (e.g. `PokemonRouter → PokemonController → PokemonUseCase → PokemonRepository
+   handler, use case, port, repository adapter, DAO and mappers
+   (e.g. `PokemonRouter → PokemonHandler → PokemonUseCase → PokemonRepository
    ◁ PokemonRepositoryAdapter → PokemonPrismaDao`).
 3. **Behavior = classes, data = interfaces.**
-   - Everything with behavior is a class: routers, controllers, middlewares,
+   - Everything with behavior is a class: routers, handlers, middlewares,
      use cases, domain services, repository adapters, DAOs, mappers, gateways.
      Behavior classes are stateless (no per-request data on `this`).
    - Pure data shapes are `interface`s with no methods: domain models, port
@@ -61,36 +61,36 @@ technology-specific is an adapter around it.
    | Kind | Location | Rule |
    |---|---|---|
    | Domain model | `domain/models` | `interface`, shape the business needs; may differ from tables |
-   | DB entity | `adapters/outbound/prisma/entities` | **Derived** from Prisma types (`Prisma.xGetPayload<…>`), never hand-written. Never leaves `adapters/outbound` |
-   | Request/response DTO | `adapters/inbound/http/schemas` | Request: zod schema + `z.infer` type. Response: `interface`. Never leaves `adapters/inbound` |
+   | DB entity | `out/prisma/entities` | **Derived** from Prisma types (`Prisma.xGetPayload<…>`), never hand-written. Never leaves `out` |
+   | Request/response DTO | `in/http/schemas` | Request: zod schema + `z.infer` type. Response: `interface`. Never leaves `in` |
 
    Mapper classes: `XPrismaMapper` (entity ⇄ domain) in
-   `adapters/outbound/prisma/mappers`; `XHttpMapper` (request DTO → domain,
-   domain → response DTO) in `adapters/inbound/http/mappers`.
-7. **Validation split.** Shape (types, required, formats) = zod in the controller
+   `out/prisma/mappers`; `XHttpMapper` (request DTO → domain,
+   domain → response DTO) in `in/http/mappers`.
+7. **Validation split.** Shape (types, required, formats) = zod in the handler
    (keeps types inferred). Business rules (e.g. regulation legality) = domain
    services / use cases.
 8. **Errors.** Use cases throw domain errors (`NotFoundError`,
    `ValidationError`, `ConflictError` extending `DomainError`), never HTTP codes.
    `ErrorHandlerMiddleware` maps them to RFC 9457 `application/problem+json`
    (`type, title, status, detail, instance` + `errors[]` for zod failures).
-   Controllers have no try/catch (Express 5 forwards rejected promises).
+   Handlers have no try/catch (Express 5 forwards rejected promises).
 9. **Transactions** live in repository adapters (decision 5). A cross-repository
    `TransactionManager` port is added only if a use case ever needs to make
    several repositories atomic together.
 10. **Express callbacks are arrow-function properties.** Any method handed to
-    Express as a bare callback (controller endpoints, middleware `handle`) is
+    Express as a bare callback (handler endpoints, middleware `handle`) is
     declared as `name = async (req, res) => { … }` so `this` stays bound.
 11. **TS constraints** (`tsconfig`: `erasableSyntaxOnly`): no constructor
-    parameter properties (assign `#private` fields explicitly), no `enum`
+    parameter properties (declare `private readonly` fields and assign them explicitly), no `enum`
     (use `as const` objects / unions). Relative imports use `.ts` extensions.
 
 ## Class responsibilities
 
 - **Router** (`TeamRouter`) — endpoint signature only: path, method,
-  middleware chain (auth, etc.), controller binding. Exposes a `router` property.
+  middleware chain (auth, etc.), handler binding. Exposes a `router` property.
   No logic.
-- **Controller** (`TeamController`) — HTTP ⇄ domain translation: zod-parse
+- **Handler** (`TeamHandler`) — HTTP ⇄ domain translation: zod-parse
   `params/query/body`, map to domain via `TeamHttpMapper`, call the use case,
   map result to response DTO, set status. No business logic.
 - **Middleware** (`RequireAdminMiddleware`, `ErrorHandlerMiddleware`, …) —
@@ -112,26 +112,24 @@ technology-specific is an adapter around it.
 ```
 apps/backend/src/
 ├── domain/
-│   ├── models/          pokemon.ts, team.ts …               (interfaces)
-│   ├── ports/           pokemon-repository.ts …             (interfaces)
+│   ├── models/          pokemon.model.ts, team.model.ts, pagination.model.ts … (interfaces)
+│   ├── ports/           pokemon.repository.ts …             (interfaces)
 │   ├── errors/          domain-error.ts, not-found-error.ts …
 │   ├── services/        team-rules.service.ts, damage-calc.service.ts (later)
 │   └── use-cases/       pokemon.use-case.ts, team.use-case.ts
-├── adapters/
-│   ├── inbound/http/
-│   │   ├── routers/     team.router.ts
-│   │   ├── controllers/ team.controller.ts
-│   │   ├── schemas/     team.schemas.ts       (zod request schemas, response interfaces)
-│   │   ├── mappers/     team.http-mapper.ts   (request → domain, domain → response)
-│   │   ├── middlewares/ error-handler.middleware.ts, request-logger.middleware.ts,
-│   │   │                require-admin.middleware.ts, not-found.middleware.ts
-│   │   └── app.ts       HttpApp: builds the Express app from routers + middlewares
-│   └── outbound/prisma/
-│       ├── client.ts
-│       ├── entities/     team.entity.ts         (derived from Prisma types)
-│       ├── daos/         team.prisma-dao.ts
-│       ├── repositories/ team.repository-adapter.ts
-│       └── mappers/      team.prisma-mapper.ts  (entity ⇄ domain)
+├── in/http/
+│   ├── routers/     team.router.ts, app.ts (HttpApp: builds the Express app from routers + middlewares)
+│   ├── handlers/    team.handler.ts
+│   ├── schemas/     team.schema.ts, pagination.schema.ts (zod request schemas, response interfaces)
+│   ├── mappers/     team.http-mapper.ts   (request → domain, domain → response)
+│   └── middlewares/ error-handler.middleware.ts, request-logger.middleware.ts,
+│                    require-admin.middleware.ts, not-found.middleware.ts
+├── out/prisma/
+│   ├── client.ts
+│   ├── entities/     team.entity.ts         (derived from Prisma types)
+│   ├── daos/         team.prisma-dao.ts
+│   ├── repositories/ team.repository-adapter.ts
+│   └── mappers/      team.prisma-mapper.ts  (entity ⇄ domain)
 ├── config/
 │   └── env.ts
 └── main/
@@ -140,12 +138,16 @@ apps/backend/src/
     └── vercel.ts        prod: export default express app
 ```
 
+Each folder has an `index.ts` barrel. Cross-folder imports use `tsconfig`
+path aliases to those barrels (`@models`, `@ports`, `@use-cases`, `@handlers`,
+`@schemas`, `@routers`); same-folder imports stay relative with `.ts` extensions.
+
 ## Request flow
 
 ```
-HTTP → middlewares (logger, auth) → Router → Controller (zod parse → HttpMapper)
+HTTP → middlewares (logger, auth) → Router → Handler (zod parse → HttpMapper)
      → UseCase → Port ◁ RepositoryAdapter → PrismaDao → Postgres
-     ← DB entity → PrismaMapper → domain model → Controller → HttpMapper → res.json
+     ← DB entity → PrismaMapper → domain model → Handler → HttpMapper → res.json
      (any throw) → ErrorHandlerMiddleware → problem+json
 ```
 
@@ -154,7 +156,7 @@ HTTP → middlewares (logger, auth) → Router → Controller (zod parse → Htt
 ### Domain
 
 ```ts
-// domain/models/team.ts
+// domain/models/team.model.ts
 export interface TeamMember {
   pokemonId: number;
   abilityId: number;
@@ -171,7 +173,7 @@ export interface Team {
   members: TeamMember[];
 }
 
-// domain/ports/team-repository.ts
+// domain/ports/team.repository.ts
 export interface TeamRepository {
   findById(id: number): Promise<Team | null>;
   insertTeam(team: Team): Promise<Team>;
@@ -197,31 +199,31 @@ export class TeamRulesService {
 ```ts
 // domain/use-cases/team.use-case.ts
 export class TeamUseCase {
-  readonly #teams: TeamRepository;
-  readonly #regulations: RegulationRepository;
-  readonly #rules: TeamRulesService;
+  private readonly teams: TeamRepository;
+  private readonly regulations: RegulationRepository;
+  private readonly rules: TeamRulesService;
 
   constructor(teams: TeamRepository, regulations: RegulationRepository, rules: TeamRulesService) {
-    this.#teams = teams;
-    this.#regulations = regulations;
-    this.#rules = rules;
+    this.teams = teams;
+    this.regulations = regulations;
+    this.rules = rules;
   }
 
   async getById(id: number): Promise<Team> {
-    const team = await this.#teams.findById(id);
+    const team = await this.teams.findById(id);
     if (!team) throw new NotFoundError('team', id);
     return team;
   }
 
   async create(team: Team): Promise<Team> {
-    const violations = this.#rules.findViolations(team);
+    const violations = this.rules.findViolations(team);
     if (violations.length > 0) throw new ValidationError('Invalid team', violations);
 
-    const allowed = new Set(await this.#regulations.findAllowedPokemonIds(team.regulationId));
+    const allowed = new Set(await this.regulations.findAllowedPokemonIds(team.regulationId));
     const illegal = team.members.filter((m) => !allowed.has(m.pokemonId));
     if (illegal.length > 0) throw new ValidationError('Pokémon not legal in regulation');
 
-    return this.#teams.insertTeam(team);
+    return this.teams.insertTeam(team);
   }
 }
 ```
@@ -229,10 +231,10 @@ export class TeamUseCase {
 ### Outbound adapter
 
 ```ts
-// adapters/outbound/prisma/entities/team.entity.ts
+// out/prisma/entities/team.entity.ts
 export type TeamEntity = Prisma.teamsGetPayload<{ include: { team_members: true } }>;
 
-// adapters/outbound/prisma/daos/team.prisma-dao.ts
+// out/prisma/daos/team.prisma-dao.ts
 type Db = PrismaClient | Prisma.TransactionClient;
 
 export class TeamPrismaDao {
@@ -247,27 +249,27 @@ export class TeamPrismaDao {
   }
 }
 
-// adapters/outbound/prisma/repositories/team.repository-adapter.ts
+// out/prisma/repositories/team.repository-adapter.ts
 export class TeamRepositoryAdapter implements TeamRepository {
-  readonly #prisma: PrismaClient;
-  readonly #dao: TeamPrismaDao;
-  readonly #mapper: TeamPrismaMapper;
+  private readonly prisma: PrismaClient;
+  private readonly dao: TeamPrismaDao;
+  private readonly mapper: TeamPrismaMapper;
 
   constructor(prisma: PrismaClient, dao: TeamPrismaDao, mapper: TeamPrismaMapper) {
-    this.#prisma = prisma;
-    this.#dao = dao;
-    this.#mapper = mapper;
+    this.prisma = prisma;
+    this.dao = dao;
+    this.mapper = mapper;
   }
 
   async findById(id: number): Promise<Team | null> {
-    const entity = await this.#dao.findById(this.#prisma, id);
-    return entity ? this.#mapper.toDomain(entity) : null;
+    const entity = await this.dao.findById(this.prisma, id);
+    return entity ? this.mapper.toDomain(entity) : null;
   }
 
   insertTeam(team: Team): Promise<Team> {
-    return this.#prisma.$transaction(async (tx) => {
-      const row = await this.#dao.insert(tx, this.#mapper.toTeamRow(team));
-      await this.#dao.insertMembers(tx, this.#mapper.toMemberRows(row.id, team.members));
+    return this.prisma.$transaction(async (tx) => {
+      const row = await this.dao.insert(tx, this.mapper.toTeamRow(team));
+      await this.dao.insertMembers(tx, this.mapper.toMemberRows(row.id, team.members));
       return { ...team, id: row.id };
     });
   }
@@ -277,7 +279,7 @@ export class TeamRepositoryAdapter implements TeamRepository {
 ### Inbound adapter
 
 ```ts
-// adapters/inbound/http/schemas/team.schemas.ts
+// in/http/schemas/team.schema.ts
 export const TeamIdParams = z.object({ id: z.coerce.number().int().positive() });
 
 export const CreateTeamRequest = z.object({
@@ -301,7 +303,7 @@ export interface TeamResponse {
   members: TeamMemberResponse[];
 }
 
-// adapters/inbound/http/mappers/team.http-mapper.ts
+// in/http/mappers/team.http-mapper.ts
 export class TeamHttpMapper {
   toDomain(body: CreateTeamRequest): Team {
     return { name: body.name, regulationId: body.regulationId, members: body.members };
@@ -311,30 +313,30 @@ export class TeamHttpMapper {
   }
 }
 
-// adapters/inbound/http/controllers/team.controller.ts
-export class TeamController {
-  readonly #teams: TeamUseCase;
-  readonly #mapper: TeamHttpMapper;
+// in/http/handlers/team.handler.ts
+export class TeamHandler {
+  private readonly teams: TeamUseCase;
+  private readonly mapper: TeamHttpMapper;
 
   constructor(teams: TeamUseCase, mapper: TeamHttpMapper) {
-    this.#teams = teams;
-    this.#mapper = mapper;
+    this.teams = teams;
+    this.mapper = mapper;
   }
 
   getById = async (req: Request, res: Response) => {
     const { id } = TeamIdParams.parse(req.params);
-    const team = await this.#teams.getById(id);
-    res.json(this.#mapper.toResponse(team));
+    const team = await this.teams.getById(id);
+    res.json(this.mapper.toResponse(team));
   };
 
   create = async (req: Request, res: Response) => {
     const body = CreateTeamRequest.parse(req.body);
-    const team = await this.#teams.create(this.#mapper.toDomain(body));
-    res.status(201).location(`/api/v1/teams/${team.id}`).json(this.#mapper.toResponse(team));
+    const team = await this.teams.create(this.mapper.toDomain(body));
+    res.status(201).location(`/api/v1/teams/${team.id}`).json(this.mapper.toResponse(team));
   };
 }
 
-// adapters/inbound/http/middlewares/require-admin.middleware.ts
+// in/http/middlewares/require-admin.middleware.ts
 export class RequireAdminMiddleware {
   handle = async (req: Request, res: Response, next: NextFunction) => {
     // check session/role; throw ForbiddenError if not admin
@@ -342,18 +344,18 @@ export class RequireAdminMiddleware {
   };
 }
 
-// adapters/inbound/http/routers/team.router.ts
+// in/http/routers/team.router.ts
 export class TeamRouter {
   readonly basePath = '/api/v1/teams';
   readonly router: Router = Router();
 
-  constructor(controller: TeamController, requireAdmin: RequireAdminMiddleware) {
-    this.router.get('/:id', controller.getById);
-    this.router.post('/', requireAdmin.handle, controller.create);
+  constructor(handler: TeamHandler, requireAdmin: RequireAdminMiddleware) {
+    this.router.get('/:id', handler.getById);
+    this.router.post('/', requireAdmin.handle, handler.create);
   }
 }
 
-// adapters/inbound/http/app.ts
+// in/http/app.ts
 export interface HttpRouter {
   readonly basePath: string;
   readonly router: Router;
@@ -392,10 +394,10 @@ const teamUseCase = new TeamUseCase(teamRepository, regulationRepository, new Te
 
 // inbound
 const requireAdmin = new RequireAdminMiddleware();
-const teamController = new TeamController(teamUseCase, new TeamHttpMapper());
+const teamHandler = new TeamHandler(teamUseCase, new TeamHttpMapper());
 
 export const httpApp = new HttpApp(
-  [new TeamRouter(teamController, requireAdmin)],
+  [new TeamRouter(teamHandler, requireAdmin)],
   new RequestLoggerMiddleware(),
   new NotFoundMiddleware(),
   new ErrorHandlerMiddleware(),

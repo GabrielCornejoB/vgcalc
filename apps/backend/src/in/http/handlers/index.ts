@@ -1,1 +1,1 @@
-export * from './ability.controller.ts';
+export * from './ability.handler.ts';

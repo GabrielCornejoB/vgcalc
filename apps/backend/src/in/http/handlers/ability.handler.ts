@@ -10,7 +10,7 @@ export class AbilityHandler {
         this.useCase = useCase;
     }
 
-    async getByPagination(request: Request, response: Response) {
+    getByPagination = async (request: Request, response: Response) => {
         const pagination = PaginationSchema.parse(request.body);
 
         response.status(200).json({
