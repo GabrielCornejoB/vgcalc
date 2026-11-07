@@ -10,8 +10,8 @@ Final verification passed (§8) (see §4.1 for the order and dependencies).
 Branch `feature/etl`. Progress is tracked in §4.1; per-strategy notes for the
 finished ones are in §3.1–3.5. Nothing is pushed.
 
-- **Reference implementation:** `scripts/etl/internal/etl/ability-strategy.go`
-  and `scripts/etl/internal/entity/ability.go`. Copy their shape for every
+- **Reference implementation:** `apps/etl/internal/etl/ability-strategy.go`
+  and `apps/etl/internal/entity/ability.go`. Copy their shape for every
   other strategy (§2.1 conventions).
 - **Next step:** none; the refactor is complete and verified (§8). Nothing is pushed.
 - **Snapshots** (§5) were taken before step 1 and live in the session
@@ -22,12 +22,12 @@ finished ones are in §3.1–3.5. Nothing is pushed.
   commits (`refactor(etl): …`), one commit per §4 item, commit trailer as in
   earlier commits, never push unless asked, say "calc (calc is short for
   calculatXXX btw)" instead of the full word. Follow
-  `.agents/skills/golang-guidelines/SKILL.md` (120-char lines, index rules).
+  `apps/etl/.agents/skills/golang-guidelines/SKILL.md` (120-char lines, index rules).
 - Pure refactor: if any diff in §5 is not empty, stop and report it instead
   of "fixing" the data.
 
-Files in scope: `scripts/etl/main.go`, `scripts/etl/internal/csv/`, every file
-in `scripts/etl/internal/etl/`, and a new `scripts/etl/internal/entity/`.
+Files in scope: `apps/etl/main.go`, `apps/etl/internal/csv/`, every file
+in `apps/etl/internal/etl/`, and a new `apps/etl/internal/entity/`.
 
 ## 1. Problem
 
@@ -325,7 +325,7 @@ verified once its FK tables are populated.
 
 Pure refactor: **no change to rows written.**
 
-1. After every commit: `cd scripts/etl && gofmt -l . && go vet ./...`
+1. After every commit: `cd apps/etl && gofmt -l . && go vet ./...`
 2. **Before commit 1**, snapshot every table from the current code:
    `\copy (SELECT * FROM vgcalc.<table> ORDER BY <natural key>) TO '<file>'`
    for all 9 tables (docker DB `apps-db-1`, `.env` with `DB_*` + `DATA_DIR`).
