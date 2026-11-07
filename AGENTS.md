@@ -18,5 +18,6 @@ Build a **Pokemon Champions VGC application**, starting from a clean, well-desig
 ## Technical references
 
 - [System Architecture](./docs/system-architecture.md)
+- [Backend Architecture](./docs/backend-architecture.md)
 - [Scripts](./scripts/)
 
