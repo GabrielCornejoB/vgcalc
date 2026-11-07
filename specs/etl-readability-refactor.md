@@ -9,7 +9,7 @@ that strategy's file; `pokemon-rows.go` holds only shared ones. S10 dropped
 ## Handoff (read this first)
 
 Branch `feature/etl`. Last pushed commit is `3ca058c`; later commits are local
-until pushed. All 9 strategies are registered in `scripts/etl/main.go`.
+until pushed. All 9 strategies are registered in `apps/etl/main.go`.
 
 **Done (one commit each)**
 - Phase 1: `pokemon-moves-strategy.go` simplified (pure `buildPokemonMoves`,
@@ -26,8 +26,8 @@ until pushed. All 9 strategies are registered in `scripts/etl/main.go`.
 - Row structs: single-use ones live in their own strategy file.
 
 **How to verify a change** (no automated tests exist)
-1. `cd scripts/etl && gofmt -l . && go vet ./...`
-2. `go run .` (needs `scripts/etl/.env` with DB_* and `DATA_DIR`, and the
+1. `cd apps/etl && gofmt -l . && go vet ./...`
+2. `go run .` (needs `apps/etl/.env` with DB_* and `DATA_DIR`, and the
    docker DB from `apps/docker-compose.yaml` running as `apps-db-1`).
 3. Expected counts: `pokemon` 1251, `mega_evolution` 90, `pokemon_moves`
    14,752, `moves` 937. A pure refactor must not change them.
@@ -45,8 +45,8 @@ commit trailer `Co-Authored-By` as in earlier commits, one commit per item,
 never push without being asked, and say "calc (calc is short for
 calculatXXX btw)" instead of the full word.
 
-Files in scope: `scripts/etl/main.go` and every file in
-`scripts/etl/internal/etl/`.
+Files in scope: `apps/etl/main.go` and every file in
+`apps/etl/internal/etl/`.
 
 ## 0. Ground rules
 
@@ -214,7 +214,7 @@ uniform build → apply×3 shape. **Recommend keeping as is.**
 
 ### S10. Naming of files
 
-Files are kebab-case (`pokemon-moves-strategy.go`). `.agents/skills/golang-guidelines`
+Files are kebab-case (`pokemon-moves-strategy.go`). `apps/etl/.agents/skills/golang-guidelines`
 may prefer snake_case. Check the skill first; rename (with `git mv`) only if
 it says so.
 

@@ -2,9 +2,9 @@
 
 Status: **DONE** (2026-10-20). Approved 2026-10-17; implemented and superseded by the
 extract/transform/load reshape (`etl-extract-transform-load-refactor.md`).
-Files touched: `scripts/etl/internal/etl/mega-evolution-strategy.go`,
-`scripts/etl/internal/etl/pokemon-strategy.go`,
-`scripts/etl/internal/etl/pokemon-rows.go`,
+Files touched: `apps/etl/internal/etl/mega-evolution-strategy.go`,
+`apps/etl/internal/etl/pokemon-strategy.go`,
+`apps/etl/internal/etl/pokemon-rows.go`,
 `docs/relational-model.md`.
 
 ## 1. Context
