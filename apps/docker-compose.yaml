@@ -2,7 +2,7 @@ services:
   db:
     image: postgres:18-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-vgcalc}
+      POSTGRES_USER: ${POSTGRES_USER:-vgcalc_app}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vgcalc}
       POSTGRES_DB: ${POSTGRES_DB:-vgcalc}
     ports:
@@ -10,7 +10,7 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-vgcalc} -d $${POSTGRES_DB:-vgcalc}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-vgcalc_app} -d $${POSTGRES_DB:-vgcalc}"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -1,0 +1,232 @@
+// use prisma-8
+
+namespace vgcalc {
+  model Type {
+    id          Int    @id @default(autoincrement())
+    pokeapiId   Int    @unique @map("pokeapi_id")
+    slug        String @unique
+    displayName String @map("display_name")
+
+    attackEfficacies       TypeEfficacy[]  @relation(name: "TypeEfficacyAttack")
+    targetEfficacies       TypeEfficacy[]  @relation(name: "TypeEfficacyTarget")
+    moves                  Move[]
+    primaryPokemon         Pokemon[]       @relation(name: "PokemonPrimaryType")
+    secondaryPokemon       Pokemon[]       @relation(name: "PokemonSecondaryType")
+    primaryMegaEvolution   MegaEvolution[] @relation(name: "MegaEvolutionPrimaryType")
+    secondaryMegaEvolution MegaEvolution[] @relation(name: "MegaEvolutionSecondaryType")
+
+    @@map("types")
+  }
+
+  model TypeEfficacy {
+    attackTypeId Int                            @map("attack_type_id")
+    targetTypeId Int                            @map("target_type_id")
+    multiplier   Decimal(precision: 3, scale: 1)
+
+    attackType Type @relation(name: "TypeEfficacyAttack", fields: [attackTypeId], references: [id])
+    targetType Type @relation(name: "TypeEfficacyTarget", fields: [targetTypeId], references: [id])
+
+    @@id([attackTypeId, targetTypeId])
+    @@check(expression: sql`multiplier IN (0, 0.5, 1, 2)`, name: "type_efficacy_multiplier_allowed")
+    @@map("type_efficacy")
+  }
+
+  model Ability {
+    id          Int     @id @default(autoincrement())
+    pokeapiId   Int     @unique @map("pokeapi_id")
+    slug        String  @unique
+    displayName String  @map("display_name")
+    shortEffect String? @map("short_effect")
+    effect      String?
+
+    pokemonAbility1      Pokemon[]       @relation(name: "PokemonAbility1")
+    pokemonAbility2      Pokemon[]       @relation(name: "PokemonAbility2")
+    pokemonHiddenAbility Pokemon[]       @relation(name: "PokemonHiddenAbility")
+    megaEvolutions       MegaEvolution[]
+
+    @@map("abilities")
+  }
+
+  model Move {
+    id          Int     @id @default(autoincrement())
+    pokeapiId   Int     @unique @map("pokeapi_id")
+    slug        String  @unique
+    displayName String  @map("display_name")
+    shortEffect String? @map("short_effect")
+    effect      String?
+    typeId      Int     @map("type_id")
+    category    String
+    power       Int
+    accuracy    Int
+    pp          Int
+    priority    Int     @default(0)
+    target      String
+    isContact   Boolean @default(false) @map("is_contact")
+    isPunch     Boolean @default(false) @map("is_punch")
+    isBite      Boolean @default(false) @map("is_bite")
+    isSound     Boolean @default(false) @map("is_sound")
+    isPulse     Boolean @default(false) @map("is_pulse")
+    isBullet    Boolean @default(false) @map("is_bullet")
+    isSlicing   Boolean @default(false) @map("is_slicing")
+    isWind      Boolean @default(false) @map("is_wind")
+    minHits     Int?    @map("min_hits")
+    maxHits     Int?    @map("max_hits")
+
+    type           Type            @relation(fields: [typeId], references: [id])
+    pokemonMoves   PokemonMove[]
+    megaEvolutions MegaEvolution[]
+
+    @@index([typeId], map: "idx_moves_type")
+    @@check(expression: sql`category IN ('physical', 'special', 'status')`, name: "moves_category_allowed")
+    @@check(expression: sql`power >= 0`, name: "moves_power_non_negative")
+    @@check(expression: sql`accuracy BETWEEN 0 AND 100`, name: "moves_accuracy_range")
+    @@check(expression: sql`pp >= 0`, name: "moves_pp_non_negative")
+    @@check(expression: sql`min_hits >= 1`, name: "moves_min_hits_positive")
+    @@check(expression: sql`max_hits >= 1`, name: "moves_max_hits_positive")
+    @@check(expression: sql`max_hits IS NULL OR min_hits IS NULL OR max_hits >= min_hits`, name: "moves_hits_range")
+    @@map("moves")
+  }
+
+  model Item {
+    id          Int     @id @default(autoincrement())
+    pokeapiId   Int     @unique @map("pokeapi_id")
+    slug        String  @unique
+    displayName String  @map("display_name")
+    shortEffect String? @map("short_effect")
+    effect      String?
+    flingPower  Int     @default(0) @map("fling_power")
+
+    megaEvolutions MegaEvolution[]
+
+    @@check(expression: sql`fling_power >= 0`, name: "items_fling_power_non_negative")
+    @@map("items")
+  }
+
+  model Nature {
+    id          Int    @id @default(autoincrement())
+    pokeapiId   Int    @unique @map("pokeapi_id")
+    slug        String @unique
+    displayName String @map("display_name")
+    plusStat    String @map("plus_stat")
+    minusStat   String @map("minus_stat")
+
+    @@check(expression: sql`plus_stat IN ('atk', 'def', 'spa', 'spd', 'spe')`, name: "natures_plus_stat_allowed")
+    @@check(expression: sql`minus_stat IN ('atk', 'def', 'spa', 'spd', 'spe')`, name: "natures_minus_stat_allowed")
+    @@map("natures")
+  }
+
+  model Pokemon {
+    id              Int                             @id @default(autoincrement())
+    pokeapiId       Int                             @unique @map("pokeapi_id")
+    slug            String                          @unique
+    displayName     String                          @map("display_name")
+    primaryTypeId   Int                             @map("primary_type_id")
+    secondaryTypeId Int?                            @map("secondary_type_id")
+    hp              Int
+    atk             Int
+    def             Int
+    spa             Int
+    spd             Int
+    spe             Int
+    ability1Id      Int                             @map("ability1_id")
+    ability2Id      Int?                            @map("ability2_id")
+    hiddenAbilityId Int?                            @map("hidden_ability_id")
+    weight          Decimal(precision: 6, scale: 2)
+    fixedGender     String?                         @map("fixed_gender")
+
+    primaryType   Type     @relation(name: "PokemonPrimaryType", fields: [primaryTypeId], references: [id])
+    secondaryType Type?    @relation(name: "PokemonSecondaryType", fields: [secondaryTypeId], references: [id])
+    ability1      Ability  @relation(name: "PokemonAbility1", fields: [ability1Id], references: [id])
+    ability2      Ability? @relation(name: "PokemonAbility2", fields: [ability2Id], references: [id])
+    hiddenAbility Ability? @relation(name: "PokemonHiddenAbility", fields: [hiddenAbilityId], references: [id])
+
+    megaEvolutions MegaEvolution[]
+    moves          PokemonMove[]
+    regulations    RegulationPokemon[]
+
+    @@index([primaryTypeId], map: "idx_pokemon_primary_type")
+    @@index([ability1Id], map: "idx_pokemon_ability1")
+    @@check(expression: sql`hp >= 1`, name: "pokemon_hp_positive")
+    @@check(expression: sql`atk >= 1`, name: "pokemon_atk_positive")
+    @@check(expression: sql`def >= 1`, name: "pokemon_def_positive")
+    @@check(expression: sql`spa >= 1`, name: "pokemon_spa_positive")
+    @@check(expression: sql`spd >= 1`, name: "pokemon_spd_positive")
+    @@check(expression: sql`spe >= 1`, name: "pokemon_spe_positive")
+    @@check(expression: sql`weight > 0`, name: "pokemon_weight_positive")
+    @@check(expression: sql`fixed_gender IN ('male', 'female', 'genderless')`, name: "pokemon_fixed_gender_allowed")
+    @@map("pokemon")
+  }
+
+  model MegaEvolution {
+    id              Int                             @id @default(autoincrement())
+    pokeapiId       Int                             @unique @map("pokeapi_id")
+    basePokemonId   Int                             @map("base_pokemon_id")
+    slug            String                          @unique
+    requiredItemId  Int?                            @map("required_item_id")
+    requiredMoveId  Int?                            @map("required_move_id")
+    abilityId       Int                             @map("ability_id")
+    primaryTypeId   Int                             @map("primary_type_id")
+    secondaryTypeId Int?                            @map("secondary_type_id")
+    hp              Int
+    atk             Int
+    def             Int
+    spa             Int
+    spd             Int
+    spe             Int
+    weight          Decimal(precision: 6, scale: 2)
+
+    basePokemon   Pokemon @relation(fields: [basePokemonId], references: [id])
+    requiredItem  Item?   @relation(fields: [requiredItemId], references: [id])
+    requiredMove  Move?   @relation(fields: [requiredMoveId], references: [id])
+    ability       Ability @relation(fields: [abilityId], references: [id])
+    primaryType   Type    @relation(name: "MegaEvolutionPrimaryType", fields: [primaryTypeId], references: [id])
+    secondaryType Type?   @relation(name: "MegaEvolutionSecondaryType", fields: [secondaryTypeId], references: [id])
+
+    @@index([basePokemonId], map: "idx_mega_base")
+    @@check(expression: sql`hp >= 1`, name: "mega_evolution_hp_positive")
+    @@check(expression: sql`atk >= 1`, name: "mega_evolution_atk_positive")
+    @@check(expression: sql`def >= 1`, name: "mega_evolution_def_positive")
+    @@check(expression: sql`spa >= 1`, name: "mega_evolution_spa_positive")
+    @@check(expression: sql`spd >= 1`, name: "mega_evolution_spd_positive")
+    @@check(expression: sql`spe >= 1`, name: "mega_evolution_spe_positive")
+    @@check(expression: sql`weight > 0`, name: "mega_evolution_weight_positive")
+    @@check(expression: sql`(CASE WHEN required_item_id IS NOT NULL THEN 1 ELSE 0 END + CASE WHEN required_move_id IS NOT NULL THEN 1 ELSE 0 END) = 1`, name: "mega_evolution_single_requirement")
+    @@map("mega_evolution")
+  }
+
+  model PokemonMove {
+    pokemonId Int @map("pokemon_id")
+    moveId    Int @map("move_id")
+
+    pokemon Pokemon @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+    move    Move    @relation(fields: [moveId], references: [id], onDelete: Cascade)
+
+    @@id([pokemonId, moveId])
+    @@index([moveId], map: "idx_pokemon_moves_move")
+    @@map("pokemon_moves")
+  }
+
+  model Regulation {
+    id          Int     @id @default(autoincrement())
+    slug        String  @unique
+    displayName String  @map("display_name")
+    isCurrent   Boolean @default(false) @map("is_current")
+
+    pokemon RegulationPokemon[]
+
+    @@index([isCurrent], unique: true, where: sql`is_current = TRUE`, name: "regulations_single_current")
+    @@map("regulations")
+  }
+
+  model RegulationPokemon {
+    regulationId Int @map("regulation_id")
+    pokemonId    Int @map("pokemon_id")
+
+    regulation Regulation @relation(fields: [regulationId], references: [id], onDelete: Cascade)
+    pokemon    Pokemon    @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+
+    @@id([regulationId, pokemonId])
+    @@index([pokemonId], map: "idx_regulation_pokemon_pokemon")
+    @@map("regulation_pokemon")
+  }
+}
