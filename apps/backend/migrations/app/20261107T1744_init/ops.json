@@ -1,0 +1,3143 @@
+[
+  {
+    "id": "schema.public",
+    "label": "Create schema \"public\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Create schema \"public\"",
+        "sql": "CREATE SCHEMA IF NOT EXISTS \"public\"",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "schema.vgcalc",
+    "label": "Create schema \"vgcalc\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Create schema \"vgcalc\"",
+        "sql": "CREATE SCHEMA IF NOT EXISTS \"vgcalc\"",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "table.abilities",
+    "label": "Create table \"abilities\"",
+    "summary": "Creates table \"abilities\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "table",
+        "name": "abilities"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"abilities\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"abilities\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"abilities\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"abilities\"",
+        "sql": "CREATE TABLE \"vgcalc\".\"abilities\" (\n  \"display_name\" text NOT NULL,\n  \"effect\" text,\n  \"id\" SERIAL NOT NULL,\n  \"pokeapi_id\" int4 NOT NULL,\n  \"short_effect\" text,\n  \"slug\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"abilities\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"abilities\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"abilities\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.items",
+    "label": "Create table \"items\"",
+    "summary": "Creates table \"items\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "table",
+        "name": "items"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"items\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"items\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"items\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"items\"",
+        "sql": "CREATE TABLE \"vgcalc\".\"items\" (\n  \"display_name\" text NOT NULL,\n  \"effect\" text,\n  \"fling_power\" int4 DEFAULT 0 NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"pokeapi_id\" int4 NOT NULL,\n  \"short_effect\" text,\n  \"slug\" text NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"items_fling_power_non_negative_eca3988b\" CHECK (fling_power >= 0)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"items\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"items\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"items\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.mega_evolution",
+    "label": "Create table \"mega_evolution\"",
+    "summary": "Creates table \"mega_evolution\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "table",
+        "name": "mega_evolution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"mega_evolution\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"mega_evolution\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"mega_evolution\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"mega_evolution\"",
+        "sql": "CREATE TABLE \"vgcalc\".\"mega_evolution\" (\n  \"ability_id\" int4 NOT NULL,\n  \"atk\" int4 NOT NULL,\n  \"base_pokemon_id\" int4 NOT NULL,\n  \"def\" int4 NOT NULL,\n  \"hp\" int4 NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"pokeapi_id\" int4 NOT NULL,\n  \"primary_type_id\" int4 NOT NULL,\n  \"required_item_id\" int4,\n  \"required_move_id\" int4,\n  \"secondary_type_id\" int4,\n  \"slug\" text NOT NULL,\n  \"spa\" int4 NOT NULL,\n  \"spd\" int4 NOT NULL,\n  \"spe\" int4 NOT NULL,\n  \"weight\" numeric(6,2) NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"mega_evolution_atk_positive_197b305e\" CHECK (atk >= 1),\n  CONSTRAINT \"mega_evolution_def_positive_fd9d232a\" CHECK (def >= 1),\n  CONSTRAINT \"mega_evolution_hp_positive_a6ecb535\" CHECK (hp >= 1),\n  CONSTRAINT \"mega_evolution_single_requirement_b28b4b5c\" CHECK ((CASE WHEN required_item_id IS NOT NULL THEN 1 ELSE 0 END + CASE WHEN required_move_id IS NOT NULL THEN 1 ELSE 0 END) = 1),\n  CONSTRAINT \"mega_evolution_spa_positive_803af724\" CHECK (spa >= 1),\n  CONSTRAINT \"mega_evolution_spd_positive_a55d07d0\" CHECK (spd >= 1),\n  CONSTRAINT \"mega_evolution_spe_positive_b7760321\" CHECK (spe >= 1),\n  CONSTRAINT \"mega_evolution_weight_positive_7c35b28d\" CHECK (weight > 0)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"mega_evolution\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"mega_evolution\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"mega_evolution\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.moves",
+    "label": "Create table \"moves\"",
+    "summary": "Creates table \"moves\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "table",
+        "name": "moves"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"moves\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"moves\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"moves\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"moves\"",
+        "sql": "CREATE TABLE \"vgcalc\".\"moves\" (\n  \"accuracy\" int4 NOT NULL,\n  \"category\" text NOT NULL,\n  \"display_name\" text NOT NULL,\n  \"effect\" text,\n  \"id\" SERIAL NOT NULL,\n  \"is_bite\" bool DEFAULT false NOT NULL,\n  \"is_bullet\" bool DEFAULT false NOT NULL,\n  \"is_contact\" bool DEFAULT false NOT NULL,\n  \"is_pulse\" bool DEFAULT false NOT NULL,\n  \"is_punch\" bool DEFAULT false NOT NULL,\n  \"is_slicing\" bool DEFAULT false NOT NULL,\n  \"is_sound\" bool DEFAULT false NOT NULL,\n  \"is_wind\" bool DEFAULT false NOT NULL,\n  \"max_hits\" int4,\n  \"min_hits\" int4,\n  \"pokeapi_id\" int4 NOT NULL,\n  \"power\" int4 NOT NULL,\n  \"pp\" int4 NOT NULL,\n  \"priority\" int4 DEFAULT 0 NOT NULL,\n  \"short_effect\" text,\n  \"slug\" text NOT NULL,\n  \"target\" text NOT NULL,\n  \"type_id\" int4 NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"moves_accuracy_range_1a03c3e6\" CHECK (accuracy BETWEEN 0 AND 100),\n  CONSTRAINT \"moves_category_allowed_9de5a245\" CHECK (category IN ('physical', 'special', 'status')),\n  CONSTRAINT \"moves_hits_range_b6013138\" CHECK (max_hits IS NULL OR min_hits IS NULL OR max_hits >= min_hits),\n  CONSTRAINT \"moves_max_hits_positive_add4ae2a\" CHECK (max_hits >= 1),\n  CONSTRAINT \"moves_min_hits_positive_46b5efb3\" CHECK (min_hits >= 1),\n  CONSTRAINT \"moves_power_non_negative_ee2786d9\" CHECK (power >= 0),\n  CONSTRAINT \"moves_pp_non_negative_a480c8c4\" CHECK (pp >= 0)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"moves\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"moves\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"moves\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.natures",
+    "label": "Create table \"natures\"",
+    "summary": "Creates table \"natures\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "table",
+        "name": "natures"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"natures\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"natures\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"natures\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"natures\"",
+        "sql": "CREATE TABLE \"vgcalc\".\"natures\" (\n  \"display_name\" text NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"minus_stat\" text NOT NULL,\n  \"plus_stat\" text NOT NULL,\n  \"pokeapi_id\" int4 NOT NULL,\n  \"slug\" text NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"natures_minus_stat_allowed_c5cd20cf\" CHECK (minus_stat IN ('atk', 'def', 'spa', 'spd', 'spe')),\n  CONSTRAINT \"natures_plus_stat_allowed_54b86585\" CHECK (plus_stat IN ('atk', 'def', 'spa', 'spd', 'spe'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"natures\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"natures\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"natures\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.pokemon",
+    "label": "Create table \"pokemon\"",
+    "summary": "Creates table \"pokemon\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "table",
+        "name": "pokemon"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"pokemon\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"pokemon\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"pokemon\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"pokemon\"",
+        "sql": "CREATE TABLE \"vgcalc\".\"pokemon\" (\n  \"ability1_id\" int4 NOT NULL,\n  \"ability2_id\" int4,\n  \"atk\" int4 NOT NULL,\n  \"def\" int4 NOT NULL,\n  \"display_name\" text NOT NULL,\n  \"fixed_gender\" text,\n  \"hidden_ability_id\" int4,\n  \"hp\" int4 NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"pokeapi_id\" int4 NOT NULL,\n  \"primary_type_id\" int4 NOT NULL,\n  \"secondary_type_id\" int4,\n  \"slug\" text NOT NULL,\n  \"spa\" int4 NOT NULL,\n  \"spd\" int4 NOT NULL,\n  \"spe\" int4 NOT NULL,\n  \"weight\" numeric(6,2) NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"pokemon_atk_positive_197b305e\" CHECK (atk >= 1),\n  CONSTRAINT \"pokemon_def_positive_fd9d232a\" CHECK (def >= 1),\n  CONSTRAINT \"pokemon_fixed_gender_allowed_782c5d90\" CHECK (fixed_gender IN ('male', 'female', 'genderless')),\n  CONSTRAINT \"pokemon_hp_positive_a6ecb535\" CHECK (hp >= 1),\n  CONSTRAINT \"pokemon_spa_positive_803af724\" CHECK (spa >= 1),\n  CONSTRAINT \"pokemon_spd_positive_a55d07d0\" CHECK (spd >= 1),\n  CONSTRAINT \"pokemon_spe_positive_b7760321\" CHECK (spe >= 1),\n  CONSTRAINT \"pokemon_weight_positive_7c35b28d\" CHECK (weight > 0)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"pokemon\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"pokemon\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"pokemon\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.pokemon_moves",
+    "label": "Create table \"pokemon_moves\"",
+    "summary": "Creates table \"pokemon_moves\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "table",
+        "name": "pokemon_moves"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"pokemon_moves\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"pokemon_moves\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"pokemon_moves\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"pokemon_moves\"",
+        "sql": "CREATE TABLE \"vgcalc\".\"pokemon_moves\" (\n  \"move_id\" int4 NOT NULL,\n  \"pokemon_id\" int4 NOT NULL,\n  PRIMARY KEY (\"pokemon_id\", \"move_id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"pokemon_moves\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"pokemon_moves\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"pokemon_moves\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.regulation_pokemon",
+    "label": "Create table \"regulation_pokemon\"",
+    "summary": "Creates table \"regulation_pokemon\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "table",
+        "name": "regulation_pokemon"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"regulation_pokemon\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"regulation_pokemon\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"regulation_pokemon\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"regulation_pokemon\"",
+        "sql": "CREATE TABLE \"vgcalc\".\"regulation_pokemon\" (\n  \"pokemon_id\" int4 NOT NULL,\n  \"regulation_id\" int4 NOT NULL,\n  PRIMARY KEY (\"regulation_id\", \"pokemon_id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"regulation_pokemon\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"regulation_pokemon\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"regulation_pokemon\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.regulations",
+    "label": "Create table \"regulations\"",
+    "summary": "Creates table \"regulations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "table",
+        "name": "regulations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"regulations\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"regulations\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"regulations\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"regulations\"",
+        "sql": "CREATE TABLE \"vgcalc\".\"regulations\" (\n  \"display_name\" text NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"is_current\" bool DEFAULT false NOT NULL,\n  \"slug\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"regulations\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"regulations\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"regulations\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.type_efficacy",
+    "label": "Create table \"type_efficacy\"",
+    "summary": "Creates table \"type_efficacy\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "table",
+        "name": "type_efficacy"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"type_efficacy\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"type_efficacy\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"type_efficacy\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"type_efficacy\"",
+        "sql": "CREATE TABLE \"vgcalc\".\"type_efficacy\" (\n  \"attack_type_id\" int4 NOT NULL,\n  \"multiplier\" numeric(3,1) NOT NULL,\n  \"target_type_id\" int4 NOT NULL,\n  PRIMARY KEY (\"attack_type_id\", \"target_type_id\"),\n  CONSTRAINT \"type_efficacy_multiplier_allowed_b4b6ef93\" CHECK (multiplier IN (0, 0.5, 1, 2))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"type_efficacy\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"type_efficacy\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"type_efficacy\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.types",
+    "label": "Create table \"types\"",
+    "summary": "Creates table \"types\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "table",
+        "name": "types"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"types\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"types\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"types\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"types\"",
+        "sql": "CREATE TABLE \"vgcalc\".\"types\" (\n  \"display_name\" text NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"pokeapi_id\" int4 NOT NULL,\n  \"slug\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"types\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"types\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"types\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "unique.abilities.abilities_pokeapi_id_key",
+    "label": "Add unique constraint on \"abilities\" (pokeapi_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "unique",
+        "name": "abilities_pokeapi_id_key",
+        "table": "abilities"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"abilities_pokeapi_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "abilities_pokeapi_id_key",
+          "vgcalc",
+          "\"vgcalc\".\"abilities\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"abilities_pokeapi_id_key\" on \"abilities\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"abilities_pokeapi_id_key\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"abilities\" ADD CONSTRAINT \"abilities_pokeapi_id_key\" UNIQUE (\"pokeapi_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"abilities_pokeapi_id_key\" exists on (pokeapi_id)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "abilities_pokeapi_id_key",
+          "vgcalc",
+          "\"vgcalc\".\"abilities\"",
+          "u",
+          "[\"pokeapi_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.abilities.abilities_slug_key",
+    "label": "Add unique constraint on \"abilities\" (slug)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "unique",
+        "name": "abilities_slug_key",
+        "table": "abilities"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"abilities_slug_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "abilities_slug_key",
+          "vgcalc",
+          "\"vgcalc\".\"abilities\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"abilities_slug_key\" on \"abilities\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"abilities_slug_key\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"abilities\" ADD CONSTRAINT \"abilities_slug_key\" UNIQUE (\"slug\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"abilities_slug_key\" exists on (slug)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "abilities_slug_key",
+          "vgcalc",
+          "\"vgcalc\".\"abilities\"",
+          "u",
+          "[\"slug\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.items.items_pokeapi_id_key",
+    "label": "Add unique constraint on \"items\" (pokeapi_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "unique",
+        "name": "items_pokeapi_id_key",
+        "table": "items"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"items_pokeapi_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "items_pokeapi_id_key",
+          "vgcalc",
+          "\"vgcalc\".\"items\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"items_pokeapi_id_key\" on \"items\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"items_pokeapi_id_key\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"items\" ADD CONSTRAINT \"items_pokeapi_id_key\" UNIQUE (\"pokeapi_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"items_pokeapi_id_key\" exists on (pokeapi_id)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "items_pokeapi_id_key",
+          "vgcalc",
+          "\"vgcalc\".\"items\"",
+          "u",
+          "[\"pokeapi_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.items.items_slug_key",
+    "label": "Add unique constraint on \"items\" (slug)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "unique",
+        "name": "items_slug_key",
+        "table": "items"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"items_slug_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "items_slug_key",
+          "vgcalc",
+          "\"vgcalc\".\"items\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"items_slug_key\" on \"items\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"items_slug_key\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"items\" ADD CONSTRAINT \"items_slug_key\" UNIQUE (\"slug\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"items_slug_key\" exists on (slug)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "items_slug_key",
+          "vgcalc",
+          "\"vgcalc\".\"items\"",
+          "u",
+          "[\"slug\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.mega_evolution.mega_evolution_pokeapi_id_key",
+    "label": "Add unique constraint on \"mega_evolution\" (pokeapi_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "unique",
+        "name": "mega_evolution_pokeapi_id_key",
+        "table": "mega_evolution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"mega_evolution_pokeapi_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "mega_evolution_pokeapi_id_key",
+          "vgcalc",
+          "\"vgcalc\".\"mega_evolution\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"mega_evolution_pokeapi_id_key\" on \"mega_evolution\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"mega_evolution_pokeapi_id_key\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"mega_evolution\" ADD CONSTRAINT \"mega_evolution_pokeapi_id_key\" UNIQUE (\"pokeapi_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"mega_evolution_pokeapi_id_key\" exists on (pokeapi_id)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "mega_evolution_pokeapi_id_key",
+          "vgcalc",
+          "\"vgcalc\".\"mega_evolution\"",
+          "u",
+          "[\"pokeapi_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.mega_evolution.mega_evolution_slug_key",
+    "label": "Add unique constraint on \"mega_evolution\" (slug)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "unique",
+        "name": "mega_evolution_slug_key",
+        "table": "mega_evolution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"mega_evolution_slug_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "mega_evolution_slug_key",
+          "vgcalc",
+          "\"vgcalc\".\"mega_evolution\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"mega_evolution_slug_key\" on \"mega_evolution\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"mega_evolution_slug_key\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"mega_evolution\" ADD CONSTRAINT \"mega_evolution_slug_key\" UNIQUE (\"slug\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"mega_evolution_slug_key\" exists on (slug)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "mega_evolution_slug_key",
+          "vgcalc",
+          "\"vgcalc\".\"mega_evolution\"",
+          "u",
+          "[\"slug\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.moves.moves_pokeapi_id_key",
+    "label": "Add unique constraint on \"moves\" (pokeapi_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "unique",
+        "name": "moves_pokeapi_id_key",
+        "table": "moves"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"moves_pokeapi_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "moves_pokeapi_id_key",
+          "vgcalc",
+          "\"vgcalc\".\"moves\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"moves_pokeapi_id_key\" on \"moves\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"moves_pokeapi_id_key\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"moves\" ADD CONSTRAINT \"moves_pokeapi_id_key\" UNIQUE (\"pokeapi_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"moves_pokeapi_id_key\" exists on (pokeapi_id)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "moves_pokeapi_id_key",
+          "vgcalc",
+          "\"vgcalc\".\"moves\"",
+          "u",
+          "[\"pokeapi_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.moves.moves_slug_key",
+    "label": "Add unique constraint on \"moves\" (slug)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "unique",
+        "name": "moves_slug_key",
+        "table": "moves"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"moves_slug_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "moves_slug_key",
+          "vgcalc",
+          "\"vgcalc\".\"moves\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"moves_slug_key\" on \"moves\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"moves_slug_key\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"moves\" ADD CONSTRAINT \"moves_slug_key\" UNIQUE (\"slug\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"moves_slug_key\" exists on (slug)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "moves_slug_key",
+          "vgcalc",
+          "\"vgcalc\".\"moves\"",
+          "u",
+          "[\"slug\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.natures.natures_pokeapi_id_key",
+    "label": "Add unique constraint on \"natures\" (pokeapi_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "unique",
+        "name": "natures_pokeapi_id_key",
+        "table": "natures"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"natures_pokeapi_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "natures_pokeapi_id_key",
+          "vgcalc",
+          "\"vgcalc\".\"natures\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"natures_pokeapi_id_key\" on \"natures\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"natures_pokeapi_id_key\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"natures\" ADD CONSTRAINT \"natures_pokeapi_id_key\" UNIQUE (\"pokeapi_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"natures_pokeapi_id_key\" exists on (pokeapi_id)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "natures_pokeapi_id_key",
+          "vgcalc",
+          "\"vgcalc\".\"natures\"",
+          "u",
+          "[\"pokeapi_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.natures.natures_slug_key",
+    "label": "Add unique constraint on \"natures\" (slug)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "unique",
+        "name": "natures_slug_key",
+        "table": "natures"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"natures_slug_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "natures_slug_key",
+          "vgcalc",
+          "\"vgcalc\".\"natures\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"natures_slug_key\" on \"natures\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"natures_slug_key\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"natures\" ADD CONSTRAINT \"natures_slug_key\" UNIQUE (\"slug\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"natures_slug_key\" exists on (slug)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "natures_slug_key",
+          "vgcalc",
+          "\"vgcalc\".\"natures\"",
+          "u",
+          "[\"slug\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.pokemon.pokemon_pokeapi_id_key",
+    "label": "Add unique constraint on \"pokemon\" (pokeapi_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "unique",
+        "name": "pokemon_pokeapi_id_key",
+        "table": "pokemon"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"pokemon_pokeapi_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "pokemon_pokeapi_id_key",
+          "vgcalc",
+          "\"vgcalc\".\"pokemon\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"pokemon_pokeapi_id_key\" on \"pokemon\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"pokemon_pokeapi_id_key\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"pokemon\" ADD CONSTRAINT \"pokemon_pokeapi_id_key\" UNIQUE (\"pokeapi_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"pokemon_pokeapi_id_key\" exists on (pokeapi_id)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "pokemon_pokeapi_id_key",
+          "vgcalc",
+          "\"vgcalc\".\"pokemon\"",
+          "u",
+          "[\"pokeapi_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.pokemon.pokemon_slug_key",
+    "label": "Add unique constraint on \"pokemon\" (slug)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "unique",
+        "name": "pokemon_slug_key",
+        "table": "pokemon"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"pokemon_slug_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "pokemon_slug_key",
+          "vgcalc",
+          "\"vgcalc\".\"pokemon\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"pokemon_slug_key\" on \"pokemon\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"pokemon_slug_key\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"pokemon\" ADD CONSTRAINT \"pokemon_slug_key\" UNIQUE (\"slug\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"pokemon_slug_key\" exists on (slug)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "pokemon_slug_key",
+          "vgcalc",
+          "\"vgcalc\".\"pokemon\"",
+          "u",
+          "[\"slug\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.regulations.regulations_slug_key",
+    "label": "Add unique constraint on \"regulations\" (slug)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "unique",
+        "name": "regulations_slug_key",
+        "table": "regulations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"regulations_slug_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "regulations_slug_key",
+          "vgcalc",
+          "\"vgcalc\".\"regulations\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"regulations_slug_key\" on \"regulations\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"regulations_slug_key\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"regulations\" ADD CONSTRAINT \"regulations_slug_key\" UNIQUE (\"slug\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"regulations_slug_key\" exists on (slug)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "regulations_slug_key",
+          "vgcalc",
+          "\"vgcalc\".\"regulations\"",
+          "u",
+          "[\"slug\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.types.types_pokeapi_id_key",
+    "label": "Add unique constraint on \"types\" (pokeapi_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "unique",
+        "name": "types_pokeapi_id_key",
+        "table": "types"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"types_pokeapi_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "types_pokeapi_id_key",
+          "vgcalc",
+          "\"vgcalc\".\"types\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"types_pokeapi_id_key\" on \"types\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"types_pokeapi_id_key\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"types\" ADD CONSTRAINT \"types_pokeapi_id_key\" UNIQUE (\"pokeapi_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"types_pokeapi_id_key\" exists on (pokeapi_id)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "types_pokeapi_id_key",
+          "vgcalc",
+          "\"vgcalc\".\"types\"",
+          "u",
+          "[\"pokeapi_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.types.types_slug_key",
+    "label": "Add unique constraint on \"types\" (slug)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "unique",
+        "name": "types_slug_key",
+        "table": "types"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"types_slug_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "types_slug_key",
+          "vgcalc",
+          "\"vgcalc\".\"types\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"types_slug_key\" on \"types\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"types_slug_key\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"types\" ADD CONSTRAINT \"types_slug_key\" UNIQUE (\"slug\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"types_slug_key\" exists on (slug)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "types_slug_key",
+          "vgcalc",
+          "\"vgcalc\".\"types\"",
+          "u",
+          "[\"slug\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.mega_evolution.idx_mega_base",
+    "label": "Create index \"idx_mega_base\" on \"mega_evolution\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "idx_mega_base",
+        "table": "mega_evolution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"idx_mega_base\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"idx_mega_base\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"idx_mega_base\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"idx_mega_base\"",
+        "sql": "CREATE INDEX \"idx_mega_base\" ON \"vgcalc\".\"mega_evolution\" (\"base_pokemon_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"idx_mega_base\" exists on \"mega_evolution\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"idx_mega_base\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"mega_evolution\"",
+          "btree",
+          "[\"base_pokemon_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.mega_evolution.mega_evolution_ability_id_idx_a0e402a2",
+    "label": "Create index \"mega_evolution_ability_id_idx_a0e402a2\" on \"mega_evolution\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "mega_evolution_ability_id_idx_a0e402a2",
+        "table": "mega_evolution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"mega_evolution_ability_id_idx_a0e402a2\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"mega_evolution_ability_id_idx_a0e402a2\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"mega_evolution_ability_id_idx_a0e402a2\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"mega_evolution_ability_id_idx_a0e402a2\"",
+        "sql": "CREATE INDEX \"mega_evolution_ability_id_idx_a0e402a2\" ON \"vgcalc\".\"mega_evolution\" (\"ability_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"mega_evolution_ability_id_idx_a0e402a2\" exists on \"mega_evolution\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"mega_evolution_ability_id_idx_a0e402a2\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"mega_evolution\"",
+          "btree",
+          "[\"ability_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.mega_evolution.mega_evolution_primary_type_id_idx_73cc02d2",
+    "label": "Create index \"mega_evolution_primary_type_id_idx_73cc02d2\" on \"mega_evolution\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "mega_evolution_primary_type_id_idx_73cc02d2",
+        "table": "mega_evolution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"mega_evolution_primary_type_id_idx_73cc02d2\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"mega_evolution_primary_type_id_idx_73cc02d2\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"mega_evolution_primary_type_id_idx_73cc02d2\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"mega_evolution_primary_type_id_idx_73cc02d2\"",
+        "sql": "CREATE INDEX \"mega_evolution_primary_type_id_idx_73cc02d2\" ON \"vgcalc\".\"mega_evolution\" (\"primary_type_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"mega_evolution_primary_type_id_idx_73cc02d2\" exists on \"mega_evolution\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"mega_evolution_primary_type_id_idx_73cc02d2\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"mega_evolution\"",
+          "btree",
+          "[\"primary_type_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.mega_evolution.mega_evolution_required_item_id_idx_fa4e92d8",
+    "label": "Create index \"mega_evolution_required_item_id_idx_fa4e92d8\" on \"mega_evolution\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "mega_evolution_required_item_id_idx_fa4e92d8",
+        "table": "mega_evolution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"mega_evolution_required_item_id_idx_fa4e92d8\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"mega_evolution_required_item_id_idx_fa4e92d8\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"mega_evolution_required_item_id_idx_fa4e92d8\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"mega_evolution_required_item_id_idx_fa4e92d8\"",
+        "sql": "CREATE INDEX \"mega_evolution_required_item_id_idx_fa4e92d8\" ON \"vgcalc\".\"mega_evolution\" (\"required_item_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"mega_evolution_required_item_id_idx_fa4e92d8\" exists on \"mega_evolution\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"mega_evolution_required_item_id_idx_fa4e92d8\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"mega_evolution\"",
+          "btree",
+          "[\"required_item_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.mega_evolution.mega_evolution_required_move_id_idx_3d623c87",
+    "label": "Create index \"mega_evolution_required_move_id_idx_3d623c87\" on \"mega_evolution\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "mega_evolution_required_move_id_idx_3d623c87",
+        "table": "mega_evolution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"mega_evolution_required_move_id_idx_3d623c87\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"mega_evolution_required_move_id_idx_3d623c87\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"mega_evolution_required_move_id_idx_3d623c87\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"mega_evolution_required_move_id_idx_3d623c87\"",
+        "sql": "CREATE INDEX \"mega_evolution_required_move_id_idx_3d623c87\" ON \"vgcalc\".\"mega_evolution\" (\"required_move_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"mega_evolution_required_move_id_idx_3d623c87\" exists on \"mega_evolution\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"mega_evolution_required_move_id_idx_3d623c87\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"mega_evolution\"",
+          "btree",
+          "[\"required_move_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.mega_evolution.mega_evolution_secondary_type_id_idx_4300e104",
+    "label": "Create index \"mega_evolution_secondary_type_id_idx_4300e104\" on \"mega_evolution\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "mega_evolution_secondary_type_id_idx_4300e104",
+        "table": "mega_evolution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"mega_evolution_secondary_type_id_idx_4300e104\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"mega_evolution_secondary_type_id_idx_4300e104\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"mega_evolution_secondary_type_id_idx_4300e104\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"mega_evolution_secondary_type_id_idx_4300e104\"",
+        "sql": "CREATE INDEX \"mega_evolution_secondary_type_id_idx_4300e104\" ON \"vgcalc\".\"mega_evolution\" (\"secondary_type_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"mega_evolution_secondary_type_id_idx_4300e104\" exists on \"mega_evolution\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"mega_evolution_secondary_type_id_idx_4300e104\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"mega_evolution\"",
+          "btree",
+          "[\"secondary_type_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.moves.idx_moves_type",
+    "label": "Create index \"idx_moves_type\" on \"moves\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "idx_moves_type",
+        "table": "moves"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"idx_moves_type\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"idx_moves_type\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"idx_moves_type\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"idx_moves_type\"",
+        "sql": "CREATE INDEX \"idx_moves_type\" ON \"vgcalc\".\"moves\" (\"type_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"idx_moves_type\" exists on \"moves\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"idx_moves_type\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"moves\"",
+          "btree",
+          "[\"type_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.pokemon.idx_pokemon_ability1",
+    "label": "Create index \"idx_pokemon_ability1\" on \"pokemon\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "idx_pokemon_ability1",
+        "table": "pokemon"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"idx_pokemon_ability1\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"idx_pokemon_ability1\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"idx_pokemon_ability1\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"idx_pokemon_ability1\"",
+        "sql": "CREATE INDEX \"idx_pokemon_ability1\" ON \"vgcalc\".\"pokemon\" (\"ability1_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"idx_pokemon_ability1\" exists on \"pokemon\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"idx_pokemon_ability1\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"pokemon\"",
+          "btree",
+          "[\"ability1_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.pokemon.idx_pokemon_primary_type",
+    "label": "Create index \"idx_pokemon_primary_type\" on \"pokemon\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "idx_pokemon_primary_type",
+        "table": "pokemon"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"idx_pokemon_primary_type\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"idx_pokemon_primary_type\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"idx_pokemon_primary_type\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"idx_pokemon_primary_type\"",
+        "sql": "CREATE INDEX \"idx_pokemon_primary_type\" ON \"vgcalc\".\"pokemon\" (\"primary_type_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"idx_pokemon_primary_type\" exists on \"pokemon\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"idx_pokemon_primary_type\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"pokemon\"",
+          "btree",
+          "[\"primary_type_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.pokemon.pokemon_ability2_id_idx_76e8bff6",
+    "label": "Create index \"pokemon_ability2_id_idx_76e8bff6\" on \"pokemon\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "pokemon_ability2_id_idx_76e8bff6",
+        "table": "pokemon"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"pokemon_ability2_id_idx_76e8bff6\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"pokemon_ability2_id_idx_76e8bff6\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"pokemon_ability2_id_idx_76e8bff6\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"pokemon_ability2_id_idx_76e8bff6\"",
+        "sql": "CREATE INDEX \"pokemon_ability2_id_idx_76e8bff6\" ON \"vgcalc\".\"pokemon\" (\"ability2_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"pokemon_ability2_id_idx_76e8bff6\" exists on \"pokemon\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"pokemon_ability2_id_idx_76e8bff6\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"pokemon\"",
+          "btree",
+          "[\"ability2_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.pokemon.pokemon_hidden_ability_id_idx_cda8a618",
+    "label": "Create index \"pokemon_hidden_ability_id_idx_cda8a618\" on \"pokemon\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "pokemon_hidden_ability_id_idx_cda8a618",
+        "table": "pokemon"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"pokemon_hidden_ability_id_idx_cda8a618\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"pokemon_hidden_ability_id_idx_cda8a618\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"pokemon_hidden_ability_id_idx_cda8a618\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"pokemon_hidden_ability_id_idx_cda8a618\"",
+        "sql": "CREATE INDEX \"pokemon_hidden_ability_id_idx_cda8a618\" ON \"vgcalc\".\"pokemon\" (\"hidden_ability_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"pokemon_hidden_ability_id_idx_cda8a618\" exists on \"pokemon\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"pokemon_hidden_ability_id_idx_cda8a618\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"pokemon\"",
+          "btree",
+          "[\"hidden_ability_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.pokemon.pokemon_secondary_type_id_idx_4300e104",
+    "label": "Create index \"pokemon_secondary_type_id_idx_4300e104\" on \"pokemon\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "pokemon_secondary_type_id_idx_4300e104",
+        "table": "pokemon"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"pokemon_secondary_type_id_idx_4300e104\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"pokemon_secondary_type_id_idx_4300e104\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"pokemon_secondary_type_id_idx_4300e104\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"pokemon_secondary_type_id_idx_4300e104\"",
+        "sql": "CREATE INDEX \"pokemon_secondary_type_id_idx_4300e104\" ON \"vgcalc\".\"pokemon\" (\"secondary_type_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"pokemon_secondary_type_id_idx_4300e104\" exists on \"pokemon\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"pokemon_secondary_type_id_idx_4300e104\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"pokemon\"",
+          "btree",
+          "[\"secondary_type_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.pokemon_moves.idx_pokemon_moves_move",
+    "label": "Create index \"idx_pokemon_moves_move\" on \"pokemon_moves\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "idx_pokemon_moves_move",
+        "table": "pokemon_moves"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"idx_pokemon_moves_move\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"idx_pokemon_moves_move\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"idx_pokemon_moves_move\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"idx_pokemon_moves_move\"",
+        "sql": "CREATE INDEX \"idx_pokemon_moves_move\" ON \"vgcalc\".\"pokemon_moves\" (\"move_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"idx_pokemon_moves_move\" exists on \"pokemon_moves\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"idx_pokemon_moves_move\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"pokemon_moves\"",
+          "btree",
+          "[\"move_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.pokemon_moves.pokemon_moves_pokemon_id_idx_c2281696",
+    "label": "Create index \"pokemon_moves_pokemon_id_idx_c2281696\" on \"pokemon_moves\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "pokemon_moves_pokemon_id_idx_c2281696",
+        "table": "pokemon_moves"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"pokemon_moves_pokemon_id_idx_c2281696\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"pokemon_moves_pokemon_id_idx_c2281696\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"pokemon_moves_pokemon_id_idx_c2281696\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"pokemon_moves_pokemon_id_idx_c2281696\"",
+        "sql": "CREATE INDEX \"pokemon_moves_pokemon_id_idx_c2281696\" ON \"vgcalc\".\"pokemon_moves\" (\"pokemon_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"pokemon_moves_pokemon_id_idx_c2281696\" exists on \"pokemon_moves\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"pokemon_moves_pokemon_id_idx_c2281696\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"pokemon_moves\"",
+          "btree",
+          "[\"pokemon_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.regulation_pokemon.idx_regulation_pokemon_pokemon",
+    "label": "Create index \"idx_regulation_pokemon_pokemon\" on \"regulation_pokemon\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "idx_regulation_pokemon_pokemon",
+        "table": "regulation_pokemon"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"idx_regulation_pokemon_pokemon\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"idx_regulation_pokemon_pokemon\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"idx_regulation_pokemon_pokemon\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"idx_regulation_pokemon_pokemon\"",
+        "sql": "CREATE INDEX \"idx_regulation_pokemon_pokemon\" ON \"vgcalc\".\"regulation_pokemon\" (\"pokemon_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"idx_regulation_pokemon_pokemon\" exists on \"regulation_pokemon\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"idx_regulation_pokemon_pokemon\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"regulation_pokemon\"",
+          "btree",
+          "[\"pokemon_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.regulation_pokemon.regulation_pokemon_regulation_id_idx_7cdab16a",
+    "label": "Create index \"regulation_pokemon_regulation_id_idx_7cdab16a\" on \"regulation_pokemon\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "regulation_pokemon_regulation_id_idx_7cdab16a",
+        "table": "regulation_pokemon"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"regulation_pokemon_regulation_id_idx_7cdab16a\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"regulation_pokemon_regulation_id_idx_7cdab16a\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"regulation_pokemon_regulation_id_idx_7cdab16a\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"regulation_pokemon_regulation_id_idx_7cdab16a\"",
+        "sql": "CREATE INDEX \"regulation_pokemon_regulation_id_idx_7cdab16a\" ON \"vgcalc\".\"regulation_pokemon\" (\"regulation_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"regulation_pokemon_regulation_id_idx_7cdab16a\" exists on \"regulation_pokemon\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"regulation_pokemon_regulation_id_idx_7cdab16a\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"regulation_pokemon\"",
+          "btree",
+          "[\"regulation_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.regulations.regulations_single_current_e77f80a7",
+    "label": "Create index \"regulations_single_current_e77f80a7\" on \"regulations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "regulations_single_current_e77f80a7",
+        "table": "regulations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"regulations_single_current_e77f80a7\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"regulations_single_current_e77f80a7\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"regulations_single_current_e77f80a7\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"regulations_single_current_e77f80a7\"",
+        "sql": "CREATE UNIQUE INDEX \"regulations_single_current_e77f80a7\" ON \"vgcalc\".\"regulations\" (\"is_current\") WHERE (is_current = TRUE)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"regulations_single_current_e77f80a7\" exists on \"regulations\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND \"i\".\"indisunique\" AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NOT NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"regulations_single_current_e77f80a7\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"regulations\"",
+          "btree",
+          "[\"is_current\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.type_efficacy.type_efficacy_attack_type_id_idx_47ca91d3",
+    "label": "Create index \"type_efficacy_attack_type_id_idx_47ca91d3\" on \"type_efficacy\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "type_efficacy_attack_type_id_idx_47ca91d3",
+        "table": "type_efficacy"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"type_efficacy_attack_type_id_idx_47ca91d3\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"type_efficacy_attack_type_id_idx_47ca91d3\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"type_efficacy_attack_type_id_idx_47ca91d3\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"type_efficacy_attack_type_id_idx_47ca91d3\"",
+        "sql": "CREATE INDEX \"type_efficacy_attack_type_id_idx_47ca91d3\" ON \"vgcalc\".\"type_efficacy\" (\"attack_type_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"type_efficacy_attack_type_id_idx_47ca91d3\" exists on \"type_efficacy\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"type_efficacy_attack_type_id_idx_47ca91d3\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"type_efficacy\"",
+          "btree",
+          "[\"attack_type_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.type_efficacy.type_efficacy_target_type_id_idx_f421982a",
+    "label": "Create index \"type_efficacy_target_type_id_idx_f421982a\" on \"type_efficacy\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "index",
+        "name": "type_efficacy_target_type_id_idx_f421982a",
+        "table": "type_efficacy"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"type_efficacy_target_type_id_idx_f421982a\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"type_efficacy_target_type_id_idx_f421982a\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"type_efficacy_target_type_id_idx_f421982a\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"type_efficacy_target_type_id_idx_f421982a\"",
+        "sql": "CREATE INDEX \"type_efficacy_target_type_id_idx_f421982a\" ON \"vgcalc\".\"type_efficacy\" (\"target_type_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"type_efficacy_target_type_id_idx_f421982a\" exists on \"type_efficacy\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"vgcalc\".\"type_efficacy_target_type_id_idx_f421982a\"",
+          "i",
+          "I",
+          "\"vgcalc\".\"type_efficacy\"",
+          "btree",
+          "[\"target_type_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.mega_evolution.mega_evolution_base_pokemon_id_fkey",
+    "label": "Add foreign key \"mega_evolution_base_pokemon_id_fkey\" on \"mega_evolution\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "foreignKey",
+        "name": "mega_evolution_base_pokemon_id_fkey",
+        "table": "mega_evolution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"mega_evolution_base_pokemon_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "mega_evolution_base_pokemon_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"mega_evolution\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"mega_evolution_base_pokemon_id_fkey\" on \"mega_evolution\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"mega_evolution_base_pokemon_id_fkey\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"mega_evolution\"\nADD CONSTRAINT \"mega_evolution_base_pokemon_id_fkey\"\nFOREIGN KEY (\"base_pokemon_id\")\nREFERENCES \"vgcalc\".\"pokemon\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"mega_evolution_base_pokemon_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "mega_evolution_base_pokemon_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"mega_evolution\"",
+          "f",
+          "[\"base_pokemon_id\"]",
+          "\"vgcalc\".\"pokemon\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.mega_evolution.mega_evolution_required_item_id_fkey",
+    "label": "Add foreign key \"mega_evolution_required_item_id_fkey\" on \"mega_evolution\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "foreignKey",
+        "name": "mega_evolution_required_item_id_fkey",
+        "table": "mega_evolution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"mega_evolution_required_item_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "mega_evolution_required_item_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"mega_evolution\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"mega_evolution_required_item_id_fkey\" on \"mega_evolution\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"mega_evolution_required_item_id_fkey\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"mega_evolution\"\nADD CONSTRAINT \"mega_evolution_required_item_id_fkey\"\nFOREIGN KEY (\"required_item_id\")\nREFERENCES \"vgcalc\".\"items\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"mega_evolution_required_item_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "mega_evolution_required_item_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"mega_evolution\"",
+          "f",
+          "[\"required_item_id\"]",
+          "\"vgcalc\".\"items\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.mega_evolution.mega_evolution_required_move_id_fkey",
+    "label": "Add foreign key \"mega_evolution_required_move_id_fkey\" on \"mega_evolution\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "foreignKey",
+        "name": "mega_evolution_required_move_id_fkey",
+        "table": "mega_evolution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"mega_evolution_required_move_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "mega_evolution_required_move_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"mega_evolution\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"mega_evolution_required_move_id_fkey\" on \"mega_evolution\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"mega_evolution_required_move_id_fkey\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"mega_evolution\"\nADD CONSTRAINT \"mega_evolution_required_move_id_fkey\"\nFOREIGN KEY (\"required_move_id\")\nREFERENCES \"vgcalc\".\"moves\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"mega_evolution_required_move_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "mega_evolution_required_move_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"mega_evolution\"",
+          "f",
+          "[\"required_move_id\"]",
+          "\"vgcalc\".\"moves\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.mega_evolution.mega_evolution_ability_id_fkey",
+    "label": "Add foreign key \"mega_evolution_ability_id_fkey\" on \"mega_evolution\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "foreignKey",
+        "name": "mega_evolution_ability_id_fkey",
+        "table": "mega_evolution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"mega_evolution_ability_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "mega_evolution_ability_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"mega_evolution\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"mega_evolution_ability_id_fkey\" on \"mega_evolution\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"mega_evolution_ability_id_fkey\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"mega_evolution\"\nADD CONSTRAINT \"mega_evolution_ability_id_fkey\"\nFOREIGN KEY (\"ability_id\")\nREFERENCES \"vgcalc\".\"abilities\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"mega_evolution_ability_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "mega_evolution_ability_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"mega_evolution\"",
+          "f",
+          "[\"ability_id\"]",
+          "\"vgcalc\".\"abilities\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.mega_evolution.mega_evolution_primary_type_id_fkey",
+    "label": "Add foreign key \"mega_evolution_primary_type_id_fkey\" on \"mega_evolution\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "foreignKey",
+        "name": "mega_evolution_primary_type_id_fkey",
+        "table": "mega_evolution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"mega_evolution_primary_type_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "mega_evolution_primary_type_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"mega_evolution\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"mega_evolution_primary_type_id_fkey\" on \"mega_evolution\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"mega_evolution_primary_type_id_fkey\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"mega_evolution\"\nADD CONSTRAINT \"mega_evolution_primary_type_id_fkey\"\nFOREIGN KEY (\"primary_type_id\")\nREFERENCES \"vgcalc\".\"types\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"mega_evolution_primary_type_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "mega_evolution_primary_type_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"mega_evolution\"",
+          "f",
+          "[\"primary_type_id\"]",
+          "\"vgcalc\".\"types\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.mega_evolution.mega_evolution_secondary_type_id_fkey",
+    "label": "Add foreign key \"mega_evolution_secondary_type_id_fkey\" on \"mega_evolution\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "foreignKey",
+        "name": "mega_evolution_secondary_type_id_fkey",
+        "table": "mega_evolution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"mega_evolution_secondary_type_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "mega_evolution_secondary_type_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"mega_evolution\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"mega_evolution_secondary_type_id_fkey\" on \"mega_evolution\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"mega_evolution_secondary_type_id_fkey\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"mega_evolution\"\nADD CONSTRAINT \"mega_evolution_secondary_type_id_fkey\"\nFOREIGN KEY (\"secondary_type_id\")\nREFERENCES \"vgcalc\".\"types\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"mega_evolution_secondary_type_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "mega_evolution_secondary_type_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"mega_evolution\"",
+          "f",
+          "[\"secondary_type_id\"]",
+          "\"vgcalc\".\"types\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.moves.moves_type_id_fkey",
+    "label": "Add foreign key \"moves_type_id_fkey\" on \"moves\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "foreignKey",
+        "name": "moves_type_id_fkey",
+        "table": "moves"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"moves_type_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "moves_type_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"moves\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"moves_type_id_fkey\" on \"moves\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"moves_type_id_fkey\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"moves\"\nADD CONSTRAINT \"moves_type_id_fkey\"\nFOREIGN KEY (\"type_id\")\nREFERENCES \"vgcalc\".\"types\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"moves_type_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "moves_type_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"moves\"",
+          "f",
+          "[\"type_id\"]",
+          "\"vgcalc\".\"types\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.pokemon.pokemon_primary_type_id_fkey",
+    "label": "Add foreign key \"pokemon_primary_type_id_fkey\" on \"pokemon\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "foreignKey",
+        "name": "pokemon_primary_type_id_fkey",
+        "table": "pokemon"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"pokemon_primary_type_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "pokemon_primary_type_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"pokemon\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"pokemon_primary_type_id_fkey\" on \"pokemon\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"pokemon_primary_type_id_fkey\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"pokemon\"\nADD CONSTRAINT \"pokemon_primary_type_id_fkey\"\nFOREIGN KEY (\"primary_type_id\")\nREFERENCES \"vgcalc\".\"types\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"pokemon_primary_type_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "pokemon_primary_type_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"pokemon\"",
+          "f",
+          "[\"primary_type_id\"]",
+          "\"vgcalc\".\"types\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.pokemon.pokemon_secondary_type_id_fkey",
+    "label": "Add foreign key \"pokemon_secondary_type_id_fkey\" on \"pokemon\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "foreignKey",
+        "name": "pokemon_secondary_type_id_fkey",
+        "table": "pokemon"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"pokemon_secondary_type_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "pokemon_secondary_type_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"pokemon\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"pokemon_secondary_type_id_fkey\" on \"pokemon\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"pokemon_secondary_type_id_fkey\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"pokemon\"\nADD CONSTRAINT \"pokemon_secondary_type_id_fkey\"\nFOREIGN KEY (\"secondary_type_id\")\nREFERENCES \"vgcalc\".\"types\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"pokemon_secondary_type_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "pokemon_secondary_type_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"pokemon\"",
+          "f",
+          "[\"secondary_type_id\"]",
+          "\"vgcalc\".\"types\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.pokemon.pokemon_ability1_id_fkey",
+    "label": "Add foreign key \"pokemon_ability1_id_fkey\" on \"pokemon\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "foreignKey",
+        "name": "pokemon_ability1_id_fkey",
+        "table": "pokemon"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"pokemon_ability1_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "pokemon_ability1_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"pokemon\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"pokemon_ability1_id_fkey\" on \"pokemon\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"pokemon_ability1_id_fkey\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"pokemon\"\nADD CONSTRAINT \"pokemon_ability1_id_fkey\"\nFOREIGN KEY (\"ability1_id\")\nREFERENCES \"vgcalc\".\"abilities\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"pokemon_ability1_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "pokemon_ability1_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"pokemon\"",
+          "f",
+          "[\"ability1_id\"]",
+          "\"vgcalc\".\"abilities\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.pokemon.pokemon_ability2_id_fkey",
+    "label": "Add foreign key \"pokemon_ability2_id_fkey\" on \"pokemon\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "foreignKey",
+        "name": "pokemon_ability2_id_fkey",
+        "table": "pokemon"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"pokemon_ability2_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "pokemon_ability2_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"pokemon\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"pokemon_ability2_id_fkey\" on \"pokemon\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"pokemon_ability2_id_fkey\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"pokemon\"\nADD CONSTRAINT \"pokemon_ability2_id_fkey\"\nFOREIGN KEY (\"ability2_id\")\nREFERENCES \"vgcalc\".\"abilities\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"pokemon_ability2_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "pokemon_ability2_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"pokemon\"",
+          "f",
+          "[\"ability2_id\"]",
+          "\"vgcalc\".\"abilities\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.pokemon.pokemon_hidden_ability_id_fkey",
+    "label": "Add foreign key \"pokemon_hidden_ability_id_fkey\" on \"pokemon\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "foreignKey",
+        "name": "pokemon_hidden_ability_id_fkey",
+        "table": "pokemon"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"pokemon_hidden_ability_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "pokemon_hidden_ability_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"pokemon\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"pokemon_hidden_ability_id_fkey\" on \"pokemon\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"pokemon_hidden_ability_id_fkey\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"pokemon\"\nADD CONSTRAINT \"pokemon_hidden_ability_id_fkey\"\nFOREIGN KEY (\"hidden_ability_id\")\nREFERENCES \"vgcalc\".\"abilities\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"pokemon_hidden_ability_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "pokemon_hidden_ability_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"pokemon\"",
+          "f",
+          "[\"hidden_ability_id\"]",
+          "\"vgcalc\".\"abilities\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.pokemon_moves.pokemon_moves_pokemon_id_fkey",
+    "label": "Add foreign key \"pokemon_moves_pokemon_id_fkey\" on \"pokemon_moves\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "foreignKey",
+        "name": "pokemon_moves_pokemon_id_fkey",
+        "table": "pokemon_moves"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"pokemon_moves_pokemon_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "pokemon_moves_pokemon_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"pokemon_moves\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"pokemon_moves_pokemon_id_fkey\" on \"pokemon_moves\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"pokemon_moves_pokemon_id_fkey\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"pokemon_moves\"\nADD CONSTRAINT \"pokemon_moves_pokemon_id_fkey\"\nFOREIGN KEY (\"pokemon_id\")\nREFERENCES \"vgcalc\".\"pokemon\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"pokemon_moves_pokemon_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "pokemon_moves_pokemon_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"pokemon_moves\"",
+          "f",
+          "[\"pokemon_id\"]",
+          "\"vgcalc\".\"pokemon\"",
+          "[\"id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.pokemon_moves.pokemon_moves_move_id_fkey",
+    "label": "Add foreign key \"pokemon_moves_move_id_fkey\" on \"pokemon_moves\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "foreignKey",
+        "name": "pokemon_moves_move_id_fkey",
+        "table": "pokemon_moves"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"pokemon_moves_move_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "pokemon_moves_move_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"pokemon_moves\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"pokemon_moves_move_id_fkey\" on \"pokemon_moves\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"pokemon_moves_move_id_fkey\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"pokemon_moves\"\nADD CONSTRAINT \"pokemon_moves_move_id_fkey\"\nFOREIGN KEY (\"move_id\")\nREFERENCES \"vgcalc\".\"moves\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"pokemon_moves_move_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "pokemon_moves_move_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"pokemon_moves\"",
+          "f",
+          "[\"move_id\"]",
+          "\"vgcalc\".\"moves\"",
+          "[\"id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.regulation_pokemon.regulation_pokemon_regulation_id_fkey",
+    "label": "Add foreign key \"regulation_pokemon_regulation_id_fkey\" on \"regulation_pokemon\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "foreignKey",
+        "name": "regulation_pokemon_regulation_id_fkey",
+        "table": "regulation_pokemon"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"regulation_pokemon_regulation_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "regulation_pokemon_regulation_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"regulation_pokemon\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"regulation_pokemon_regulation_id_fkey\" on \"regulation_pokemon\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"regulation_pokemon_regulation_id_fkey\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"regulation_pokemon\"\nADD CONSTRAINT \"regulation_pokemon_regulation_id_fkey\"\nFOREIGN KEY (\"regulation_id\")\nREFERENCES \"vgcalc\".\"regulations\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"regulation_pokemon_regulation_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "regulation_pokemon_regulation_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"regulation_pokemon\"",
+          "f",
+          "[\"regulation_id\"]",
+          "\"vgcalc\".\"regulations\"",
+          "[\"id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.regulation_pokemon.regulation_pokemon_pokemon_id_fkey",
+    "label": "Add foreign key \"regulation_pokemon_pokemon_id_fkey\" on \"regulation_pokemon\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "foreignKey",
+        "name": "regulation_pokemon_pokemon_id_fkey",
+        "table": "regulation_pokemon"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"regulation_pokemon_pokemon_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "regulation_pokemon_pokemon_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"regulation_pokemon\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"regulation_pokemon_pokemon_id_fkey\" on \"regulation_pokemon\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"regulation_pokemon_pokemon_id_fkey\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"regulation_pokemon\"\nADD CONSTRAINT \"regulation_pokemon_pokemon_id_fkey\"\nFOREIGN KEY (\"pokemon_id\")\nREFERENCES \"vgcalc\".\"pokemon\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"regulation_pokemon_pokemon_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "regulation_pokemon_pokemon_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"regulation_pokemon\"",
+          "f",
+          "[\"pokemon_id\"]",
+          "\"vgcalc\".\"pokemon\"",
+          "[\"id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.type_efficacy.type_efficacy_attack_type_id_fkey",
+    "label": "Add foreign key \"type_efficacy_attack_type_id_fkey\" on \"type_efficacy\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "foreignKey",
+        "name": "type_efficacy_attack_type_id_fkey",
+        "table": "type_efficacy"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"type_efficacy_attack_type_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "type_efficacy_attack_type_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"type_efficacy\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"type_efficacy_attack_type_id_fkey\" on \"type_efficacy\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"type_efficacy_attack_type_id_fkey\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"type_efficacy\"\nADD CONSTRAINT \"type_efficacy_attack_type_id_fkey\"\nFOREIGN KEY (\"attack_type_id\")\nREFERENCES \"vgcalc\".\"types\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"type_efficacy_attack_type_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "type_efficacy_attack_type_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"type_efficacy\"",
+          "f",
+          "[\"attack_type_id\"]",
+          "\"vgcalc\".\"types\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.type_efficacy.type_efficacy_target_type_id_fkey",
+    "label": "Add foreign key \"type_efficacy_target_type_id_fkey\" on \"type_efficacy\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "vgcalc",
+        "objectType": "foreignKey",
+        "name": "type_efficacy_target_type_id_fkey",
+        "table": "type_efficacy"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"type_efficacy_target_type_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "type_efficacy_target_type_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"type_efficacy\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"type_efficacy_target_type_id_fkey\" on \"type_efficacy\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"type_efficacy_target_type_id_fkey\"",
+        "sql": "ALTER TABLE \"vgcalc\".\"type_efficacy\"\nADD CONSTRAINT \"type_efficacy_target_type_id_fkey\"\nFOREIGN KEY (\"target_type_id\")\nREFERENCES \"vgcalc\".\"types\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"type_efficacy_target_type_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "type_efficacy_target_type_id_fkey",
+          "vgcalc",
+          "\"vgcalc\".\"type_efficacy\"",
+          "f",
+          "[\"target_type_id\"]",
+          "\"vgcalc\".\"types\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  }
+]
