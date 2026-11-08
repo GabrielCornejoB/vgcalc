@@ -2,6 +2,19 @@
   "name": "vgcalc-api",
   "version": "1.0.0",
   "type": "module",
+  "imports": {
+    "#models": "./src/domain/models/index.ts",
+    "#ports": "./src/domain/ports/index.ts",
+    "#use-cases": "./src/domain/use-cases/index.ts",
+    "#handlers": "./src/in/http/handlers/index.ts",
+    "#schemas": "./src/in/http/schemas/index.ts",
+    "#routers": "./src/in/http/routers/index.ts",
+    "#entities": "./src/out/prisma/entities/index.ts",
+    "#out-mappers": "./src/out/prisma/mappers/index.ts",
+    "#repositories": "./src/out/prisma/repositories/index.ts",
+    "#prisma-migrate/contract": "./prisma/contract.d.ts",
+    "#prisma-migrate/*": "./prisma/*.ts"
+  },
   "scripts": {
     "dev": "node --experimental-strip-types --watch src/main/server.ts",
     "typecheck": "tsc",

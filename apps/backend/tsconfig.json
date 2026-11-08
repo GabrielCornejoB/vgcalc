@@ -8,18 +8,6 @@
     "noEmit": true,
     "strict": true,
     "skipLibCheck": true,
-    "paths": {
-        "@models": ["./src/domain/models/index.ts"],
-        "@ports": ["./src/domain/ports/index.ts"],
-        "@use-cases": ["./src/domain/use-cases/index.ts"],
-        "@handlers": ["./src/in/http/handlers/index.ts"],
-        "@schemas": ["./src/in/http/schemas/index.ts"],
-        "@routers": ["./src/in/http/routers/index.ts"],
-        "@entities": ["./src/out/prisma/entities/index.ts"],
-        "@out-mappers": ["./src/out/prisma/mappers/index.ts"],
-        "@repositories": ["./src/out/prisma/repositories/index.ts"]
-        "@prisma-migrate/*": ["./prisma/*"]
-    },
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "types": [

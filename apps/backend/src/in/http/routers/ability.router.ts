@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { AbilityHandler } from "@handlers";
+import type { AbilityHandler } from "#handlers";
 import type { HttpRouter } from "./app.ts";
 
 export class AbilityRouter implements HttpRouter {

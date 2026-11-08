@@ -1,5 +1,5 @@
-import type { Ability } from "@models";
-import type { AbilityEntity } from "@entities";
+import type { Ability } from "#models";
+import type { AbilityEntity } from "#entities";
 
 export const toDomainAbility = (entity: AbilityEntity): Ability => ({
     pokeapiId: entity.pokeapiId,
