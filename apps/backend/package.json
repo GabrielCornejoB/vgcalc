@@ -18,6 +18,9 @@
   "scripts": {
     "dev": "node --experimental-strip-types --watch src/main/server.ts",
     "typecheck": "tsc",
+    "lint": "oxlint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "echo \"Error: no test specified\" && exit 1",
     "contract:emit": "prisma contract emit"
   },
@@ -34,6 +37,9 @@
     "@prisma/cli-engine": "^0.9.0",
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.5",
+    "oxlint": "^1.92.0",
+    "oxlint-tsgolint": "^7.0.2006",
+    "prettier": "^3.9.10",
     "prisma": "^8.0.0-rc.33",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",

@@ -1,0 +1,50 @@
+{
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "options": {
+        "typeAware": true
+    },
+    "plugins": ["eslint", "typescript", "unicorn", "oxc", "import"],
+    "categories": {
+        "correctness": "error",
+        "suspicious": "error",
+        "perf": "error"
+    },
+    "rules": {
+        "import/no-cycle": "error",
+        "import/no-unassigned-import": ["error", { "allow": ["dotenv/config"] }],
+        "typescript/no-floating-promises": "error",
+        "typescript/require-await": "error",
+        "typescript/prefer-nullish-coalescing": "error",
+        "typescript/no-explicit-any": "error"
+    },
+    "overrides": [
+        {
+            "files": ["src/domain/**"],
+            "rules": {
+                "eslint/no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "group": [
+                                    "express",
+                                    "zod",
+                                    "@prisma/*",
+                                    "#handlers",
+                                    "#schemas",
+                                    "#routers",
+                                    "#entities",
+                                    "#out-mappers",
+                                    "#repositories",
+                                    "#prisma-migrate/*"
+                                ],
+                                "message": "src/domain must not depend on frameworks or adapters."
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    ],
+    "ignorePatterns": ["migrations/", "prisma/contract.d.ts"]
+}

@@ -1,0 +1,3 @@
+migrations/
+prisma/contract.json
+prisma/contract.d.ts
