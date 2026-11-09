@@ -1,5 +1,5 @@
-import type { Ability, Pagination } from '#models'
-import { type AbilityRepository } from '#ports'
+import type { Ability, Pagination } from '#models';
+import { type AbilityRepository } from '#ports';
 
 export class AbilityUseCase {
     private readonly repository: AbilityRepository;

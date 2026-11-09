@@ -1,10 +1,10 @@
-import type { Request, Response } from "express";
+import type { Request, Response } from 'express';
 
-import { PaginationSchema } from "#schemas";
-import type { AbilityUseCase } from "#use-cases";
+import { PaginationSchema } from '#schemas';
+import type { AbilityUseCase } from '#use-cases';
 
 export class AbilityHandler {
-    private readonly useCase: AbilityUseCase; 
+    private readonly useCase: AbilityUseCase;
 
     constructor(useCase: AbilityUseCase) {
         this.useCase = useCase;
@@ -17,7 +17,7 @@ export class AbilityHandler {
         // TODO: include the total count so clients know how many pages exist (see specs/backend-pending-changes.md §2)
         response.status(200).json({
             data: await this.useCase.getByPagination(pagination),
-            pagination
+            pagination,
         });
-    }
+    };
 }

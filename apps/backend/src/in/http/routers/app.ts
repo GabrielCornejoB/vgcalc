@@ -1,4 +1,4 @@
-import express, { type Express, type Router } from "express";
+import express, { type Express, type Router } from 'express';
 
 export interface HttpRouter {
     readonly basePath: string;
@@ -10,6 +10,6 @@ export class HttpApp {
 
     constructor(routers: HttpRouter[]) {
         this.express.use(express.json());
-        routers.forEach(router => this.express.use(router.basePath, router.router));
+        routers.forEach((router) => this.express.use(router.basePath, router.router));
     }
 }
