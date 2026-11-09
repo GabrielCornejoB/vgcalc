@@ -20,6 +20,11 @@ Build a **Pokemon Champions VGC application**, starting from a clean, well-desig
 - [System Architecture](./docs/system-architecture.md)
 - [Backend Architecture](./docs/backend-architecture.md)
 - [Scripts](./scripts/)
-- [ETL](./apps/etl/)
-- [Backend](./apps/backend/)
+
+## Applications
+
+All applications live at the following paths:
+
+- [ETL](./apps/etl/): GoLang ETL for loading data from pokeapi locally-cloned repo to PostgreSQL DB.
+- [Backend](./apps/backend/): TypeScript backend API to manage the data on the PostgreSQL DB.
 
