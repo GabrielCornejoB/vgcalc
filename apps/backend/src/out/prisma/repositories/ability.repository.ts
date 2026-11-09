@@ -1,7 +1,7 @@
 import type { Pagination } from '#models';
 import { toDomainAbility } from '#out-mappers';
 import type { AbilityRepository } from '#ports';
-import type { db } from '#prisma-migrate/db';
+import type { db } from '#prisma/db';
 
 type Database = typeof db;
 

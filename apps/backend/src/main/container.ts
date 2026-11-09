@@ -1,5 +1,5 @@
 import { AbilityHandler } from '#handlers';
-import { db } from '#prisma-migrate/db';
+import { db } from '#prisma/db';
 import { PrismaAbilityRepository } from '#repositories';
 import { AbilityRouter, HttpApp } from '#routers';
 import { AbilityUseCase } from '#use-cases';

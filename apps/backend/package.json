@@ -12,8 +12,7 @@
     "#entities": "./src/out/prisma/entities/index.ts",
     "#out-mappers": "./src/out/prisma/mappers/index.ts",
     "#repositories": "./src/out/prisma/repositories/index.ts",
-    "#prisma-migrate/contract": "./prisma/contract.d.ts",
-    "#prisma-migrate/*": "./prisma/*.ts"
+    "#prisma/*": "./prisma/*.ts"
   },
   "scripts": {
     "dev": "node --experimental-strip-types --watch src/main/server.ts",

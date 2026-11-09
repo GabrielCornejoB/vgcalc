@@ -36,7 +36,7 @@
                                     "#entities",
                                     "#out-mappers",
                                     "#repositories",
-                                    "#prisma-migrate/*"
+                                    "#prisma/*"
                                 ],
                                 "message": "src/domain must not depend on frameworks or adapters."
                             }
